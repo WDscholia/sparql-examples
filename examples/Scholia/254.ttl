@@ -1,0 +1,64 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:254 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+SELECT ?score ?author ?authorLabel (CONCAT("/author/", SUBSTR(STR(?author), 32)) AS ?authorUrl) ?example_work ?example_workLabel (CONCAT("/work/", SUBSTR(STR(?example_work), 32)) AS ?example_workUrl) WHERE {
+  {
+    SELECT (SUM(?score_) AS ?score) ?author (SAMPLE(?_example_work) AS ?example_work) (SAMPLE(?_example_workLabel) AS ?example_workLabel) WHERE {
+      {
+        ?author wdt:P101/wdt:P279* target: .
+        BIND (20 AS ?score_)
+      }
+      UNION
+      {
+        {
+          SELECT (SUM(?workScore) AS ?score_) ?author (SAMPLE(?work) AS ?_example_work) WHERE {
+            {
+              ?work wdt:P50 ?author ;
+                    wdt:P921/wdt:P279* target: .
+              BIND (3 AS ?workScore)
+            }
+            UNION
+            {
+              ?citing_work wdt:P2860 ?work ;
+                          wdt:P921/wdt:P279* target: .
+              ?work wdt:P50 ?author .
+              BIND (1 AS ?workScore)
+            }
+          } GROUP BY ?author
+        }
+
+        # Label of example work needs to be loaded when it is definitely bound, otherwise it
+        # tries include all existing labels. At the same time, it needs to be loaded after
+        # the works are sampled, as otherwise the title and IRI may refer to different works.
+
+      }
+    } GROUP BY ?author
+  }
+
+} ORDER BY DESC(?score)
+  LIMIT 200
+''';
+  scholia:aspect scholiaAspect:Topic ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Topic aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topic_author-scores.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

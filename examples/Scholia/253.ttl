@@ -1,0 +1,51 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:253 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+SELECT ?score ?author ?authorLabel WHERE {
+  {
+    SELECT ?author (SUM(?score_) AS ?score) WHERE {
+      {
+        ?author wdt:P101/wdt:P279* target: .
+        BIND (20 AS ?score_)
+      }
+      UNION {
+        ?work wdt:P50 ?author ;
+              wdt:P921/wdt:P279* target: .
+        BIND (3 AS ?score_)
+      }
+      UNION {
+        ?citing_work wdt:P2860 ?work ;
+                     wdt:P921/wdt:P279* target: .
+        ?work wdt:P50 ?author .
+        BIND (1 AS ?score_)
+      }
+    } GROUP BY ?author
+  }
+
+} ORDER BY DESC(?score)
+  LIMIT 200
+''';
+  scholia:aspect scholiaAspect:Topic ;
+  scholia:defaultView scholiaView:BubbleChart ;
+  rdfs:comment "Topic aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topic_author-scores-graph.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

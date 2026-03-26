@@ -16,12 +16,9 @@
 q:002 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-#defaultView:ImageGrid
-PREFIX target: <http://www.wikidata.org/entity/Q97270>
-
 SELECT DISTINCT ?image WHERE {
   {
     # Images of the person
@@ -29,25 +26,22 @@ SELECT DISTINCT ?image WHERE {
   }
   UNION {
     # Images from whatever property value is linked.
-    
     # Excluded "different from" property and take all other properties
     target: !wdt:P1889 ?item .
-
-    ?item wdt:P18 ?image . 
-    
+    ?item wdt:P18 ?image .
     # All people are humans, so these images are excluded.
     FILTER (?item != wd:Q5)
   }
   UNION {
     # Images associated with works of the author, both direct images,
     # images of topics of the works and images of coauthors.
-    target: ^wdt:P50 / (wdt:P921* | wdt:P50) / wdt:P18 ?image .
+    target: ^wdt:P50/(wdt:P921* | wdt:P50)/wdt:P18 ?image .
   }
-}   
+}
 ''';
   scholia:aspect scholiaAspect:Author ;
   scholia:defaultView scholiaView:ImageGrid ;
-  rdfs:comment "Author aspect: associated images"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
+  rdfs:comment "Author aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
   cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/author_associated-images.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

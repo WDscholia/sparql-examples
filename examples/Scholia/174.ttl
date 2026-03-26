@@ -16,30 +16,53 @@
 q:174 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+# Inspired from LEGOLAS - http://abel.lis.illinois.edu/legolas/
+# Shubhanshu Mishra, Vetle Torvik
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q12024>
-
-SELECT
-  ?gene ?geneLabel ?geneDescription
-  ?chromosome ?chromosomeLabel ?chromosomeDescription
-WITH {
-  SELECT ?gene ?chromosome WHERE {
-    ?gene wdt:P31 wd:Q7187 ;
-          wdt:P703 target: ;
-          wdt:P1057 ?chromosome .
+SELECT ?year (COUNT(?work) AS ?number_of_publications) WHERE {
+  {
+    SELECT (STR(?year_) AS ?year) (0 AS ?pages) WHERE {
+      # default values = 0
+      ?year_item wdt:P31 wd:Q577 .
+      ?year_item wdt:P585 ?date .
+      BIND (YEAR(?date) AS ?year_)
+      {
+        SELECT (MIN(?year_) AS ?earliest_year) WHERE {
+          {
+            ?work wdt:P921/(wdt:P361+ | wdt:P1269+ | (wdt:P31*/wdt:P279*)) target: .
+          }
+          UNION {
+            target: wdt:P2860 ?work .
+          }
+          ?work wdt:P577 ?publication_date .
+          BIND (YEAR(?publication_date) AS ?year_)
+        }
+      }
+      BIND (YEAR(NOW() 
+    ) AS ?next_year ) FILTER ( ?year_ >= ?earliest_year && ?year_ <= ?next_year )}
   }
-} AS %results {
-  INCLUDE %results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+  UNION {
+    SELECT ?work (MIN(?years) AS ?year) WHERE {
+      {
+        ?work wdt:P921/(wdt:P361+ | wdt:P1269+ | (wdt:P31*/wdt:P279*)) target: .
+      }
+      UNION {
+        target: wdt:P2860 ?work .
+      }
+      ?work wdt:P577 ?dates .
+      BIND (STR(YEAR(?dates)) AS ?years) .
+    }
+    GROUP BY ?work
+  }
 }
+GROUP BY ?year
+ORDER BY ?year
 ''';
-  scholia:aspect scholiaAspect:Taxon ;
-  rdfs:comment "Taxon aspect: genome"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/taxon_genome.sparql> ;
+  scholia:aspect scholiaAspect:Pathway ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Pathway aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/pathway_publications-per-year.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

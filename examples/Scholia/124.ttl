@@ -16,55 +16,40 @@
 q:124 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-#defaultView:BarChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q28031254>
-
-# Inspired from LEGOLAS - http://abel.lis.illinois.edu/legolas/
-# Shubhanshu Mishra, Vetle Torvik
-select ?year (count(?work) as ?number_of_publications) where {
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?time ?item ?itemLabel ?image WHERE {
   {
-    select (str(?year_) as ?year) (0 as ?pages) where {
-      # default values = 0
-      ?year_item wdt:P31 wd:Q577 . 
-      ?year_item wdt:P585 ?date .
-      bind(year(?date) as ?year_)
-      {
-        select (min(?year_) as ?earliest_year) where {
-          {
-            ?work wdt:P921 / (wdt:P361+ | wdt:P1269+ | (wdt:P31* / wdt:P279*) ) target: .
-          } union {
-            target: wdt:P2860 ?work .
-          }
-          ?work wdt:P577 ?publication_date . 
-          bind(year(?publication_date) as ?year_)
-        }
-      }
-      bind(year(now()) as ?next_year)
-      filter (?year_ >= ?earliest_year && ?year_ <= ?next_year)
+    target: wdt:P580 | wdt:P585 ?time .
+    OPTIONAL {
+      target: wdt:P18 ?image .
     }
+    BIND (wd:Q24575110 AS ?item)
   }
-  union {
-    select ?work (min(?years) as ?year) where {
-      {
-        ?work wdt:P921 / (wdt:P361+ | wdt:P1269+ | (wdt:P31* / wdt:P279*) ) target: .
-      } union {
-        target: wdt:P2860 ?work .
-      }
-      ?work wdt:P577 ?dates .
-      bind(str(year(?dates)) as ?years) .
+  UNION {
+    target: wdt:P582 ?time .
+    OPTIONAL {
+      target: wdt:P18 ?image .
     }
-    group by ?work 
+    BIND (wd:Q24575125 AS ?item)
+  }
+  UNION {
+    target: p:P793 [
+      ps:P793 ?item ;
+      pq:P585 ?time
+    ] .
   }
 }
-group by ?year 
-order by ?year''';
-  scholia:aspect scholiaAspect:Pathway ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Pathway aspect: publications per year"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/pathway_publications-per-year.sparql> ;
+''';
+  scholia:aspect scholiaAspect:Event ;
+  scholia:defaultView scholiaView:Timeline ;
+  rdfs:comment "Event aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_timeline.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

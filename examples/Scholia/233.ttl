@@ -16,53 +16,27 @@
 q:233 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:Map
-
-PREFIX target: <http://www.wikidata.org/entity/Q60687720>
-
-SELECT ?organization ?organizationLabel ?geo ?count ?layer
-WITH {
-  SELECT DISTINCT ?work WHERE {
-  # Works on the topic
-    { ?work wdt:P6104 target: .}
-      union 
-      { ?work wdt:P5008 target: .}
-      ?work wdt:P50 [].
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?publication_date ?work ?workLabel WHERE {
+  {
+    SELECT ?publication_datetime ?work WHERE {
+      ?work wdt:P4510/wdt:P279* target: ;
+            wdt:P577 ?publication_datetime .
+    }
+    ORDER BY DESC(?publication_datetime)
+    LIMIT 500
   }
-  LIMIT 20000
-} AS %works
-WITH {
-  SELECT DISTINCT ?organization ?geo (COUNT(DISTINCT ?work) AS ?count) WHERE {
-    INCLUDE %works
-    # Authors who have published works on the topic
-    ?work wdt:P50 ?author . 
-    ?author ( wdt:P108 | wdt:P463 | wdt:P1416 ) / wdt:P361* ?organization . 
-    # Use the headquarters location by default but keep the coordinate location as a fallback
-    OPTIONAL{?organization p:P159/pq:P625 ?hq_geo}
-    OPTIONAL{?organization wdt:P625 ?coord_geo}
-    BIND(IF(BOUND(?hq_geo), ?hq_geo, ?coord_geo) AS ?geo) .
-    FILTER(BOUND(?geo)) .
-  }
-  GROUP BY ?organization ?geo
-  ORDER BY DESC (?count)
-  LIMIT 2000
-} AS %organizations
-WHERE {
-  INCLUDE %organizations
-  BIND(IF( (?count < 1), "No results", IF((?count < 2), "1 result", IF((?count < 11), "1 < results ≤ 10", IF((?count < 101), "10 < results ≤ 100", IF((?count < 1001), "100 < results ≤ 1000", IF((?count < 10001), "1000 < results ≤ 10000", "10000 or more results") ) ) ) )) AS ?layer )
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }        
- }
-ORDER BY DESC (?count)
+  BIND (xsd:date(?publication_datetime) AS ?publication_date)
+}
+ORDER BY DESC(?publication_date)
 ''';
-  scholia:aspect scholiaAspect:Wikiproject ;
-  scholia:defaultView scholiaView:Map ;
-  rdfs:comment "Wikiproject aspect: organization map"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/wikiproject_organization-map.sparql> ;
+  scholia:aspect scholiaAspect:Software ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Software aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_recent-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

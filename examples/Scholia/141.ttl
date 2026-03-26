@@ -16,53 +16,61 @@
 q:141 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX pr: <http://www.wikidata.org/prop/reference/>
+  sh:select '''PREFIX target1: <http://www.wikidata.org/entity/{{ q1 }}>
+PREFIX target2: <http://www.wikidata.org/entity/{{ q2 }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# Prolific authors for a specific project
-PREFIX target: <http://www.wikidata.org/entity/Q27990087>
-
-SELECT ?count ?author ?authorLabel ?orcid ?example_work ?example_workLabel
-WITH {
-  SELECT DISTINCT ?work WHERE {
-    {
-      ?work wdt:P921 / (wdt:P527+ | wdt:P1269+ | (wdt:P31* / wdt:P279*) ) target: .
-    } UNION { ?work wdt:P859/(wdt:P1344|^wdt:P710)* target: .
-    } UNION {
-      target: ?propp ?statement .
-      ?statement a wikibase:BestRank ;
-                 prov:wasDerivedFrom/pr:P248 ?work .
+PREFIX geof: <http://www.opengis.net/def/function/geosparql/>
+SELECT ?score ?author ?authorLabel (CONCAT("/author/", SUBSTR(STR(?author),32)) AS ?authorUrl) ?example_work ?example_workLabel (CONCAT("/work/", SUBSTR(STR(?example_work),32)) AS ?example_workUrl) WHERE {
+  {
+    SELECT ?author (SUM(?topic_score) * MAX(?inverse_distance) AS ?score) (SAMPLE(?work) AS ?example_work) WHERE {
+      { # Compute distance for authors
+        SELECT DISTINCT ?author (MAX(?inverse_distance_) AS ?inverse_distance) WHERE {
+          { 
+            SELECT DISTINCT ?organization ?geo ?other_geo ?inverse_distance_ WHERE {
+              { ?organization wdt:P361*/wdt:P31/wdt:P279* wd:Q3918 .
+              } UNION {
+                ?organization wdt:P361*/wdt:P31/wdt:P279* wd:Q1371037 .
+              } UNION {
+                ?organization wdt:P361*/wdt:P31/wdt:P279* wd:Q7315155 .
+              } UNION {
+                ?organization wdt:P361*/wdt:P31/wdt:P279* wd:Q31855 .
+              } UNION {
+                ?organization wdt:P361*/wdt:P31/wdt:P279* wd:Q2385804 .
+              }
+              target1: wdt:P625 ?geo .
+              ?organization wdt:P625 ?other_geo .
+              BIND (geof:distance(?other_geo, ?geo) AS ?distance)
+              FILTER(BOUND(?distance))
+              BIND (1 / (?distance + 1) AS ?inverse_distance_)
+            }
+          }
+          ?author wdt:P108 | wdt:P1416 ?organization .
+        } GROUP BY ?author
+      }
+      {
+        # A score of 3 for each authorship in the topic
+        ?work wdt:P50 ?author .
+        FILTER EXISTS {
+          ?work wdt:P921/wdt:P279* target2: .
+        }
+        BIND (3 AS ?topic_score)
+      }
+      UNION {
+        ?author wdt:P101 target2: .
+        BIND (20 AS ?topic_score)
+      }
     }
+    GROUP BY ?author
   }
-} AS %works
-WITH {
-  SELECT
-    ?author
-    (COUNT(?work) AS ?count)
-    (SAMPLE(?work) AS ?example_work)
-  WHERE {
-    INCLUDE %works
-    ?work wdt:P50 ?author .
-  }
-  GROUP BY ?author
-} AS %result
-WHERE {
-  INCLUDE %result
-          
-  # Include optional ORCID iD
-  OPTIONAL { ?author wdt:P496 ?orcid . }
-  
-  # Label the results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
 }
-ORDER BY DESC(?count)
-LIMIT 50''';
-  scholia:aspect scholiaAspect:Project ;
-  rdfs:comment "Project aspect: prolific authors"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/project_prolific-authors.sparql> ;
+ORDER BY DESC(?score)
+''';
+  scholia:aspect scholiaAspect:Location-topic ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Location-topic aspect:  Nearby researchers that work with a specific topic and near a specified geographical entity"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/location-topic_nearby-researchers.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

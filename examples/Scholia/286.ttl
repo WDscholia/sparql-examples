@@ -1,0 +1,44 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:286 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?count ?short_name ?cited_journal ?cited_journalLabel WHERE {
+  {
+    SELECT (COUNT(?cited_work) AS ?count) ?cited_journal (SAMPLE(?short_name_) AS ?short_name) WHERE {
+      ?work wdt:P1433 target: .
+      ?work wdt:P2860 ?cited_work .
+      ?cited_work wdt:P1433 ?cited_journal .
+      OPTIONAL {
+        ?cited_journal wdt:P1813 ?short_name_ .
+      }
+    }
+    GROUP BY ?cited_journal
+  }
+}
+ORDER BY DESC(?count)
+LIMIT 200
+''';
+  scholia:aspect scholiaAspect:Venue ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Venue aspect:  Cited venues from specific journal"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_cited-venues.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

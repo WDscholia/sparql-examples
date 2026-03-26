@@ -16,30 +16,26 @@
 q:024 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q44585>
-
-SELECT
- ?count ?gender ?genderLabel 
-WITH {
-  SELECT (COUNT(DISTINCT ?recipient) AS ?count) ?gender WHERE {
-    ?recipient wdt:P166 target: .
-    ?recipient wdt:P21 ?gender . 
-  } 
-  GROUP BY ?gender
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,de,ep,fr,jp,nl,no,ru,sv,zh" . } 
-} 
+SELECT ?count ?use ?useLabel (CONCAT("/use/", SUBSTR(STR(?use),32)) AS ?useUrl) ("🔎" AS ?zoom)
+  (CONCAT("{{ q }}/use/", SUBSTR(STR(?use), 32)) AS ?zoomUrl)
+?useDescription ?example_work ?example_workLabel WHERE {
+  {
+    SELECT (COUNT(?work) AS ?count) ?use (SAMPLE(?work) AS ?example_work) {
+      ?work wdt:P50 target: ;
+            wdt:P4510 ?use .
+    }
+    GROUP BY ?use
+  }
+}
 ORDER BY DESC(?count)
 ''';
-  scholia:aspect scholiaAspect:Award ;
-  rdfs:comment "Award aspect: gender distribution"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/award_gender-distribution.sparql> ;
+  scholia:aspect scholiaAspect:Author ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Author aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/author_use.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

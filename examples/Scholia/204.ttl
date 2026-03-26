@@ -16,55 +16,31 @@
 q:204 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-# title: Articles in a specific venue citing retracted articles
-SELECT DISTINCT
-  ?retracted_work ?retracted_workLabel
-  ?date
-  ?citing_work ?citing_workLabel
-WITH {
-  # Find retracted papers indicated by instance of retracted paper, 
-  # by retraction notice property or by significant event
-  SELECT DISTINCT ?retracted_work WHERE {
-    # articles marked as "retracted"
-    { ?retracted_work wdt:P31 wd:Q45182324 }
-    UNION
-    # articles linked to a retraction notice
-    { ?retracted_work wdt:P5824 [] }
-    UNION
-    # articles with a 'retraction' event
-    { ?retracted_work wdt:P793 wd:Q45203135 }
+SELECT ?count ?protein ?proteinLabel (CONCAT("/protein/", SUBSTR(STR(?protein),32)) AS ?proteinUrl) ?species ?speciesLabel (CONCAT("/taxon/", SUBSTR(STR(?species),32)) AS ?speciesUrl) ?chemicals WHERE {
+  {
+    SELECT (COUNT(?chemical) AS ?count) ?protein (GROUP_CONCAT(?chemical_label; SEPARATOR=" // ") AS ?chemicals) WHERE {
+      target: wdt:P129 ?chemical .
+      FILTER (target: != ?protein)
+      ?protein wdt:P129 ?chemical .
+      ?chemical rdfs:label ?chemical_label FILTER (LANG(?chemical_label) = "en")
+    }
+    GROUP BY ?protein
   }
-} AS %retracted_works
-WHERE {
-  INCLUDE %retracted_works
-  ?citing_work wdt:P2860 ?retracted_work ; wdt:P1433 target: .
   OPTIONAL {
-    ?retracted_work wdt:P5824 ?retraction .
-    ?retraction wdt:P577 ?retraction_datetime
-    FILTER ( ?citing_work != ?retraction )
+    ?protein wdt:P703 ?species .
   }
-  MINUS { ?citing_work wdt:P31 wd:Q1348305 }
-  OPTIONAL {
-    ?retracted_work p:P793 [ ps:P793 wd:Q45203135 ; pq:P585 ?keyevent_datetime ]
-  }
-  BIND(COALESCE(xsd:date(COALESCE(?retraction_datetime, ?keyevent_datetime)), "Unknown date") AS ?date)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
-ORDER BY DESC(?date)
+ORDER BY DESC(?count)
+LIMIT 500
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Articles in a specific venue citing retracted articles"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_articles-citing-retracted-articles.sparql> ;
+  scholia:aspect scholiaAspect:Protein ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Protein aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/protein_cointeracting-proteins.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

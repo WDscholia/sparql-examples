@@ -1,0 +1,60 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:277 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?count (MIN(?publication_date_) AS ?publication_date) ?work ?workLabel (CONCAT("/work/", SUBSTR(STR(?work), 32)) AS ?workUrl) ?uses ?usesUrl WHERE {
+  {
+    SELECT (COUNT(DISTINCT ?mainUse) AS ?count) ?work (GROUP_CONCAT(DISTINCT ?useLabel; SEPARATOR=" // ") AS ?uses) (CONCAT("../uses/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?use), 32); SEPARATOR=",")) AS ?usesUrl) WHERE {
+      {
+        SELECT DISTINCT ?use ?mainUse WHERE {
+          {% for q in qs -%}
+          { ?use wdt:P31?/wdt:P279* wd:{{ q }} . BIND(wd:{{ q }} as ?mainUse) }
+          UNION
+          { ?use wdt:P361+ wd:{{ q }} . BIND(wd:{{ q }} as ?mainUse) }
+          UNION
+          { ?use wdt:P1269+ wd:{{ q }} . BIND(wd:{{ q }} as ?mainUse) }{% if not loop.last %}
+          UNION{% endif %}
+          {% endfor %}
+        }
+      }
+
+      ?work wdt:P4510 ?use .
+    }
+    GROUP BY ?work
+    HAVING (?count > 1)
+    ORDER BY DESC(?count)
+    LIMIT 200
+  }
+  OPTIONAL {
+    ?work wdt:P577 ?publication_datetime .
+    BIND (xsd:date(?publication_datetime) AS ?publication_date_)
+  }
+
+}
+GROUP BY ?count ?work ?workLabel ?uses ?usesUrl
+ORDER BY DESC(?count) DESC(?publication_date)
+''';
+  scholia:aspect scholiaAspect:Uses ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Uses aspect:  List of works on any combination of specific uses"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/uses_list-of-works.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

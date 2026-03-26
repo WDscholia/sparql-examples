@@ -16,23 +16,41 @@
 q:127 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''# Use by people associated with an event
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q124268563>
-
-SELECT DISTINCT ?guest ?guestLabel
-  (CONCAT("/", SUBSTR(STR(?guest), 32)) AS ?guestUrl)
-WHERE {
-  BIND(target: AS ?episode)
-  ?episode wdt:P5030 ?guest .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+SELECT ?number_of_persons ?use ?useLabel (CONCAT("/use/", SUBSTR(STR(?use),32)) AS ?useUrl) ?useDescription ?example_person ?example_personLabel (CONCAT("/author/", SUBSTR(STR(?example_person),32)) AS ?example_personUrl) WHERE {
+  {
+    SELECT (COUNT(DISTINCT ?person) AS ?number_of_persons) ?use (SAMPLE(?person) AS ?example_person) WHERE {
+      {
+        SELECT DISTINCT ?person WHERE {
+          {
+            # speaker, organizer, program committee member
+            target: wdt:P823 | wdt:P664 | wdt:P5804 ?person .
+          }
+          UNION {
+            # participant
+            ?person wdt:P1344 | ^wdt:P710 target: .
+          }
+          UNION {
+            # author
+            ?person ^wdt:P50/wdt:P1433/wdt:P4745 target: .
+          }
+        }
+      }
+      ?person ^wdt:P50/wdt:P4510 ?use .
+    }
+    GROUP BY ?use
+  }
 }
+ORDER BY DESC(?number_of_persons)
+LIMIT 200
 ''';
-  scholia:aspect scholiaAspect:Podcast-episode ;
-  rdfs:comment "Podcast-episode aspect: guests"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-episode_guests.sparql> ;
+  scholia:aspect scholiaAspect:Event ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Event aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_uses.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,35 +16,35 @@
 q:135 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX target: <http://www.wikidata.org/entity/Q124262264>
-
-SELECT ?publication_date ?episode ?episodeLabel
-  (CONCAT("/podcast-episode/", SUBSTR(STR(?episode), 32)) AS ?episodeUrl)
-WITH {
-  SELECT DISTINCT ?episode (MIN(?publication_date_) AS ?publication_date) WHERE {
-    ?episode wdt:P31 wd:Q61855877 ; wdt:P179 target: .
-    OPTIONAL {
-      ?episode wdt:P577 ?publication_datetime .
-      BIND(xsd:date(?publication_datetime) AS ?publication_date_)
+SELECT ?publication_date ?work ?workLabel ?workDescription (CONCAT("/work/", SUBSTR(STR(?work),32)) AS ?workUrl) WHERE {
+  {
+    SELECT (xsd:date(MAX(?publication_date_)) AS ?publication_date) ?work WHERE {
+      {
+        SELECT ?publication_date_ ?work WHERE {
+#          VALUES ?publication_date_ {
+          #      {% for day in range(-32, 1) %} {{ '"{}T00:00:00Z"^^xsd:dateTime'.format((datetime.datetime.now().date() + datetime.timedelta(day)).isoformat()) }} {% endfor %} 
+#        }
+          ?work wdt:P407 target: ;
+                wdt:P577 ?publication_date_ ;
+        }
+        LIMIT 1000
+      }
     }
-  } GROUP BY ?episode
+    GROUP BY ?work
     ORDER BY DESC(?publication_date)
-    LIMIT 50
-} AS %EPISODES WHERE {
-  INCLUDE %EPISODES
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-} GROUP BY ?publication_date ?episode ?episodeLabel
+    LIMIT 500
+  }
+}
 ORDER BY DESC(?publication_date)
 ''';
-  scholia:aspect scholiaAspect:Podcast ;
-  rdfs:comment "Podcast aspect: recent episodes"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast_recent-episodes.sparql> ;
+  scholia:aspect scholiaAspect:Language ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Language aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/language_recently-published-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

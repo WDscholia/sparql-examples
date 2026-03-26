@@ -17,36 +17,30 @@ q:165 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX target: <http://www.wikidata.org/entity/Q1635410>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT
-  ?publication_date
-  ?work ?workLabel
-WITH{
-  SELECT
-    ?publication_datetime
-    ?work
-  WHERE {
-    ?work wdt:P4510 / wdt:P279* target: ;
-          wdt:P577 ?publication_datetime .
+SELECT DISTINCT ?author1 ?author1Label ?author2 ?author2Label ?work ?workLabel ?pubdate WHERE {
+  VALUES ?organization1 { 
+   {% for q in qs %} wd:{{ q }} {% endfor %}
   }
-  ORDER BY DESC(?publication_datetime)
-  LIMIT 500
-} AS %result
-WHERE {
-  INCLUDE %result
-  BIND(xsd:date(?publication_datetime) AS ?publication_date)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
+  VALUES ?organization2 {
+   {% for q in qs %} wd:{{ q }} {% endfor %}
+  } 
+  ?author1 ?v1 ?organization1 . 
+  ?author2 ?v2 ?organization2 . 
+  ?work wdt:P50 ?author1, ?author2 ;
+        wdt:P577 ?pubdate .
+  FILTER (?author1 <= ?author2 && ?organization1 != ?organization2)
 }
-ORDER BY DESC(?publication_date)
+ORDER BY DESC(?pubdate)
+LIMIT 500
 ''';
-  scholia:aspect scholiaAspect:Software ;
-  rdfs:comment "Software aspect: recent works"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_recent-works.sparql> ;
+  scholia:aspect scholiaAspect:Organizations ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Organizations aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organizations_coauthorships.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

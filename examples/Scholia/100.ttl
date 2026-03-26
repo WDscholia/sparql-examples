@@ -16,48 +16,37 @@
 q:100 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX target: <http://www.wikidata.org/entity/Q20007257>
-
-SELECT
-  ?publication_date
-  ?work ?workLabel ?workDescription
-WITH {
-  SELECT
-    ?publication_date_
-    ?work
-  WHERE {
-    ?work wdt:P275 target: . 
-    OPTIONAL { ?work wdt:P577 ?publication_date_ . }
+SELECT ?count ?gene_count ?symptom_count ?disease ?diseaseLabel ?genes ?symptoms {
+  {
+    SELECT ?disease (COUNT(?gene) AS ?gene_count) (GROUP_CONCAT(?gene_label; SEPARATOR=" // ") AS ?genes) WHERE {
+      target: wdt:P2293 ?gene .
+      ?gene wdt:P2293 ?disease .
+      FILTER (target: != ?disease)
+      ?gene rdfs:label ?gene_label
+      FILTER (LANG(?gene_label) = "en")
+    }
+    GROUP BY ?disease
   }
-  ORDER BY DESC(?publication_date_)
-  LIMIT 1100
-} AS %works
-WITH {
-  SELECT
-    (xsd:date(MAX(?publication_date_)) AS ?publication_date)
-    ?work
-  WHERE {
-    INCLUDE %works
+  UNION {
+    SELECT ?disease (COUNT(?symptom) AS ?symptom_count) (GROUP_CONCAT(?symptom_label; SEPARATOR=" // ") AS ?symptoms) {
+      target: wdt:P780 ?symptom .
+      ?disease wdt:P780 ?symptom .
+      FILTER (target: != ?disease)
+      ?symptom rdfs:label ?symptom_label . FILTER (LANG(?symptom_label) = "en")
+    }
+    GROUP BY ?disease
   }
-  GROUP BY ?work
-  ORDER BY DESC(?publication_date)
-  LIMIT 1000
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+  # Aggregate count
+  BIND ((COALESCE(?symptom_count, 0) + COALESCE(?gene_count, 0)) AS ?count)
 }
-ORDER BY DESC(?publication_date)
-
-  ''';
-  scholia:aspect scholiaAspect:License ;
-  rdfs:comment "License aspect: recently published works"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/license_recently-published-works.sparql> ;
+ORDER BY DESC(?count)
+''';
+  scholia:aspect scholiaAspect:Disease ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Disease aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/disease_related-diseases.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

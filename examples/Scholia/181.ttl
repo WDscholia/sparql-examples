@@ -16,55 +16,34 @@
 q:181 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:BubbleChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q45340488>
-
-SELECT ?score ?author ?authorLabel
-WITH {
-  SELECT 
-    ?author
-    (SUM(?score_) AS ?score)
-  WHERE {
-    { 
-      ?author wdt:P101/wdt:P279* target: .
-      BIND(20 AS ?score_)
-    }
-    UNION
-    {
-      SELECT (3 AS ?score_) ?author WHERE {
-        ?work wdt:P50 ?author ;
-              wdt:P921/wdt:P279* target: .
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?publication_date ?podcast ?podcastLabel (CONCAT("/podcast/", SUBSTR(STR(?podcast),32)) AS ?podcastUrl) ?episode ?episodeLabel (CONCAT("/podcast-episode/", SUBSTR(STR(?episode),32)) AS ?episodeUrl) WHERE {
+  {
+    SELECT DISTINCT ?episode ?podcast (MIN(?publication_date_) AS ?publication_date) WHERE {
+      ?episode wdt:P31 wd:Q61855877 ;
+               wdt:P179 ?podcast .
+      ?podcast wdt:P407 target: .
+      OPTIONAL {
+        ?episode wdt:P577 ?publication_datetime .
+        BIND (xsd:date(?publication_datetime) AS ?publication_date_)
       }
     }
-    UNION
-    {
-      SELECT (1 AS ?score_) ?author WHERE {
-        ?cited_work wdt:P50 ?author .
-        ?citing_work wdt:P2860 ?cited_work .
-        ?citing_work wdt:P921/wdt:P279* target: .
-      }
-    }
+    GROUP BY ?episode ?podcast
+    ORDER BY DESC(?publication_date)
+    LIMIT 50
   }
-  GROUP BY ?author
-  ORDER BY DESC(?score)
-  LIMIT 200
-} AS %results 
-WHERE {
-  INCLUDE %results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,de,es,jp,no,ru,sv,zh". }
 }
-ORDER BY DESC(?score)
-LIMIT 200
+GROUP BY ?publication_date ?episode ?episodeLabel ?podcast ?podcastLabel
+ORDER BY DESC(?publication_date)
 ''';
-  scholia:aspect scholiaAspect:Topic ;
-  scholia:defaultView scholiaView:BubbleChart ;
-  rdfs:comment "Topic aspect: author scores graph"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topic_author-scores-graph.sparql> ;
+  scholia:aspect scholiaAspect:Podcast-language ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Podcast-language aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-language_recent-episodes.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -17,46 +17,29 @@ q:166 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#description: Show software library, programming language and developer dependencies
-
-PREFIX target: <http://www.wikidata.org/entity/Q1635410>
-
-#defaultView:Graph
-SELECT ?resource1 ?resource1Label ?image1 ?rgb ?resource2 ?resource2Label ?image2
-WITH {
-  SELECT
-    ?resource1 (SAMPLE(?image1_) AS ?image1) ?rgb
-    ?resource2 (SAMPLE(?image2_) AS ?image2)
-    {
-      {
-        # root node with coloring
-        BIND(target: AS ?resource1)
-        BIND("3080BB" AS ?rgb)
+SELECT ?organization ?organizationLabel ?organizationDescription ?location ?countryLabel WHERE {
+  {
+    SELECT ?organization (SAMPLE(?location_) AS ?location) (SAMPLE(?country_) AS ?country) WHERE {
+      VALUES ?organization { {% for q in qs %} wd:{{ q }} {% endfor %} }
+      OPTIONAL {
+        VALUES ?organization { {% for q in qs %} wd:{{ q }} {% endfor %} }
+        ?organization wdt:P131 | wdt:P159 ?location_
       }
-      UNION
-      {
-        # dependencies, programming language, developer
-        target: ( wdt:P1547 | wdt:P277 | wdt:P178 | wdt:P2283 | wdt:P275 )+ ?resource1 .
-        OPTIONAL { ?resource1 wdt:P18 ?image1_ }
+      OPTIONAL {
+        VALUES ?organization { {% for q in qs %} wd:{{ q }} {% endfor %} }
+        ?organization wdt:P17 ?country_
       }
-      target: ( wdt:P1547 | wdt:P277 | wdt:P178 | wdt:P2283 | wdt:P275 )+ ?resource2 .
-      OPTIONAL { ?resource2 wdt:P18 ?image2_ }
-      ?resource1 ( wdt:P1547 | wdt:P277 | wdt:P178 | wdt:P2283 | wdt:P275 ) ?resource2 .
     }
-    GROUP BY ?resource1 ?resource2 ?rgb
-} AS %result
-{
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
+    GROUP BY ?organization
+  }
 }
 ''';
-  scholia:aspect scholiaAspect:Software ;
-  scholia:defaultView scholiaView:Graph ;
-  rdfs:comment "Software aspect: software dependencies"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_software-dependencies.sparql> ;
+  scholia:aspect scholiaAspect:Organizations ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Organizations aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organizations_list.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

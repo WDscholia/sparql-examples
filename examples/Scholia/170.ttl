@@ -16,27 +16,40 @@
 q:170 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-# title: Scatterplot of project budgets associated with a funder
-
-PREFIX target: <http://www.wikidata.org/entity/Q1200258>
-
-#defaultView:ScatterChart
-SELECT ?start_time ?budget ?project ?projectLabel WHERE {
-  ?project wdt:P859+ target: .
-  ?project wdt:P2769 ?budget .
-  ?project (wdt:P580 | wdt:P571) ?start_time .
-  SERVICE wikibase:label {
-    bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
+  sh:select '''PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+SELECT ?count ?description WHERE {
+  {
+    {
+      SELECT (COUNT(*) AS ?count) WHERE {
+        [] wdt:P2410 [] .
+      }
+    }
+    BIND ("Total number of WikiPathways pathways" AS ?description)
+  }
+  UNION {
+    {
+      SELECT (COUNT(DISTINCT ?article) AS ?count) WHERE {
+        VALUES ?database { wdt:P2410 wdt:P3937 }
+        [] ?database [] ;
+           wdt:P2860 ?article .
+      }
+    }
+    BIND ("Total number of articles cited by pathways" AS ?description)
+  }
+  UNION {
+    {
+      SELECT (COUNT(*) AS ?count) WHERE {
+        [] wdt:P3937 [] .
+      }
+    }
+    BIND ("Total number of Reactome pathways" AS ?description)
+  }
 }
+ORDER BY DESC(?count)
 ''';
-  scholia:aspect scholiaAspect:Sponsor ;
-  rdfs:comment "Sponsor aspect: Scatterplot of project budgets associated with a funder"@en ;
-  scholia:defaultView scholiaView:ScatterChart ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/sponsor_project-budgets.sparql> ;
+  scholia:aspect scholiaAspect:Pathway-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Pathway-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/pathway-index_statistics.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

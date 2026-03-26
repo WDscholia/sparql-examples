@@ -16,23 +16,31 @@
 q:132 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q124266519>
-
-SELECT DISTINCT ?episode ?episodeLabel
-  (CONCAT("/podcast-episode/", SUBSTR(STR(?episode), 32)) AS ?episodeUrl)
-WHERE {
-  ?episode wdt:P31 wd:Q61855877 ; wdt:P4908 target: .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+SELECT ?variant ?variantLabel ?variantDescription ?types WHERE {
+  {
+    SELECT ?variant (GROUP_CONCAT(?type_label; SEPARATOR=" // ") AS ?types) WHERE {
+      {
+        SELECT ?variant ?type WHERE {
+          ?variant wdt:P3433 target:
+        }
+      }
+      OPTIONAL {
+        ?variant wdt:P279 ?variantType .
+        ?variantType rdfs:label ?type_label . FILTER (LANG(?type_label) = 'en')
+      }
+    }
+    GROUP BY ?variant
+  }
 }
 ''';
-  scholia:aspect scholiaAspect:Podcast-season ;
-  rdfs:comment "Podcast-season aspect: episodes"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-season_episodes.sparql> ;
+  scholia:aspect scholiaAspect:Gene ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Gene aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/gene_variants.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

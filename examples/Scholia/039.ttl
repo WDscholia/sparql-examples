@@ -16,75 +16,27 @@
 q:039 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+# Count the number of time works by award recipients have set a main topic
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX target: <http://www.wikidata.org/entity/Q1098>
-
-SELECT DISTINCT ?description ?value ?valueUrl
-WHERE {
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?count ?topic ?topicLabel WHERE {
   {
-    SELECT
-      (1 AS ?order)
-      ("Named after" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../topic/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P138 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-      ?iri rdfs:label ?value_string . 
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+    SELECT ?topic (COUNT(?work) AS ?count) WHERE {
+      ?recipient wdt:P166 target: .
+      ?work wdt:P50 ?recipient .
+      ?work wdt:P921 ?topic .
     }
-    GROUP BY ?dummy
+    GROUP BY ?topic
   }
-  UNION
-  {
-    SELECT
-      (2 AS ?order)
-      ("Discoverer" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../topic/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P61 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-      ?iri rdfs:label ?value_string . 
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
-    }
-    GROUP BY ?dummy
-  }
-  UNION
-  {
-    SELECT
-      (3 AS ?order)
-      ("Oxidation states" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P1121 ?value_ .
-    }
-    GROUP BY ?dummy
-  }
-  UNION
-  {
-    SELECT
-      (4 AS ?order)
-      ("Electron configuration" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P8000 ?value_ .
-    }
-    GROUP BY ?dummy
-  }
-} 
-ORDER BY ?order
+}
+ORDER BY DESC(?count)
+LIMIT 50
 ''';
-  scholia:aspect scholiaAspect:Chemical-element ;
-  rdfs:comment "Chemical-element aspect: data"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-element_data.sparql> ;
+  scholia:aspect scholiaAspect:Award ;
+  scholia:defaultView scholiaView:BubbleChart ;
+  rdfs:comment "Award aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/award_topics-of-works-by-recipients.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

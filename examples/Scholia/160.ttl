@@ -16,35 +16,78 @@
 q:160 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:Timeline
-
-PREFIX target: <http://www.wikidata.org/entity/Q73820>
-
-SELECT DISTINCT ?datetime ?venue ?venueLabel WHERE {
-  # Publisher
-  ?venue wdt:P123 target: .
-  
-  # Periodic literature
-  ?venue wdt:P31 / wdt:P279* wd:Q1002697 .
-  
-  # When the journal was started 
-  ?venue wdt:P571 ?datetime.
-  
-  # Label the journal
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?publication_date ?work ?workLabel ?researchers ?researchersUrl WHERE {
+  {
+    SELECT ?work (MIN(?publication_datetime_) AS ?publication_datetime) WHERE {
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+        }
+      }
+      ?work wdt:P50 ?researcher ;
+            wdt:P577 ?publication_datetime_ .
+    }
+    GROUP BY ?work
+    ORDER BY DESC(?publication_datetime)
+    LIMIT 200
+  }
+  {
+    SELECT ?work (GROUP_CONCAT(?researcher_label; SEPARATOR=', ') AS ?researchers) (CONCAT("../authors/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?researcher),32); SEPARATOR=",")) AS ?researchersUrl) WHERE {
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+        }
+      }
+      {
+        SELECT ?work (MIN(?publication_datetime_) AS ?publication_datetime) WHERE {
+          {
+            SELECT DISTINCT ?researcher WHERE {
+              ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+            }
+          }
+          ?work wdt:P50 ?researcher ;
+                wdt:P577 ?publication_datetime_ .
+        }
+        GROUP BY ?work
+        ORDER BY DESC(?publication_datetime)
+        LIMIT 200
+      }
+      {
+        # GROUP_CONCAT cannot honor sorting, but this was an attempt
+        SELECT ?work ?researcher ?researcher_label WHERE {
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+        }
+      }
+          ?work p:P50 [
+            ps:P50 ?researcher ;
+            pq:P1545 ?order
+          ] .
+          BIND (xsd:integer(?order) AS ?n)
+          ?researcher rdfs:label ?researcher_label . FILTER (LANG(?researcher_label) = 'en')
+        }
+        ORDER BY ?n
+      }
+    }
+    GROUP BY ?work
+  }
+  BIND (xsd:date(?publication_datetime) AS ?publication_date)
 }
-ORDER BY DESC(?datetime)
-LIMIT 50
+ORDER BY DESC(?publication_date)
 ''';
-  scholia:aspect scholiaAspect:Publisher ;
-  scholia:defaultView scholiaView:Timeline ;
-  rdfs:comment "Publisher aspect: timeline"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_timeline.sparql> ;
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView:Table ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_recent-literature.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,42 +16,35 @@
 q:208 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# title: Prolific authors for a specific journal
-
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-SELECT ?count ?author ?authorLabel ?orcid ?example_work ?example_workLabel
-WITH {
-  # Count the number of works author by the author publishing in the journal
-  SELECT
-    ?author
-    (COUNT(?work) AS ?count)
-    (SAMPLE(?work) AS ?example_work)
-  WHERE {
-    ?work wdt:P50 ?author ;
-          wdt:P1433 target: .
+SELECT ?work_count ?citation_count ?journal  ?journalLabel WHERE {
+  {
+    SELECT ?work_count ?citation_count ?journal {
+      {
+        SELECT ?journal (COUNT(?work) AS ?work_count) {
+          ?journal wdt:P123 target: .
+          ?work wdt:P1433 ?journal .
+        }
+        GROUP BY ?journal
+      }
+      {
+        SELECT ?journal (COUNT(?citing_work) AS ?citation_count) {
+          ?journal wdt:P123 target: .
+          ?work wdt:P1433 ?journal .
+          ?citing_work wdt:P2860 ?work .
+        }
+        GROUP BY ?journal
+      }
+    }
   }
-  GROUP BY ?author
-} AS %result
-WHERE {
-  INCLUDE %result 
-          
-  # Include optional ORCID iD
-  OPTIONAL { ?author wdt:P496 ?orcid . }
-  
-  # Label the results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
 }
-ORDER BY DESC(?count)
-LIMIT 50
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Prolific authors for a specific journal"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_authors.sparql> ;
+  scholia:aspect scholiaAspect:Publisher ;
+  scholia:defaultView scholiaView:ScatterChart ;
+  rdfs:comment "Publisher aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_citations-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

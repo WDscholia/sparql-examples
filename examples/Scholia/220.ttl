@@ -16,31 +16,46 @@
 q:220 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
-PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
+  sh:select '''#sparql_endpoint= https://query-scholarly.wikidata.org/sparql
+#sparql_endpoint_name= WDQS&nbsp;scholarly
+#sparql_editurl= https://query-scholarly.wikidata.org/#
+#sparql_embedurl= https://query-scholarly.wikidata.org/embed.html#
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
 
-SELECT ?intention ?intentionLabel (CONCAT("/cito/", SUBSTR(STR(?intention), 32)) AS ?intentionUrl)
-(COUNT(DISTINCT ?citingArticle) AS ?count) WHERE {
-  VALUES ?JOURNAL { target: }
-  ?citingArticle p:P2860 ?citationStatement ;
-                 wdt:P1433 ?JOURNAL .
-  ?citationStatement pq:P3712 ?intention ;
-                     ps:P2860 ?citedArticle .
-  ?intention wdt:P31 wd:Q96471816 ;
-             wdt:P2888 ?cito .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-} GROUP BY ?cito ?intention ?intentionLabel
-  ORDER BY DESC(?count)
+SELECT
+  (STR(?year_) AS ?year)
+  (SUM(?count_) AS ?count)
+  ?intentionLabel
+WHERE {
+  {
+    SELECT
+      ?year_
+      ?intention ?intentionLabel
+      (COUNT(DISTINCT ?citing_work) AS ?count_)
+    WHERE {
+      ?citing_work p:P2860 ?citationStatement .
+      ?citationStatement pq:P3712 ?intention ;
+                         ps:P2860 target: .
+      SERVICE wdsubgraph:wikidata_main {
+        ?intention wdt:P31 wd:Q96471816 ;
+          rdfs:label ?intentionLabel .
+        FILTER (lang(?intentionLabel) = "en")
+      }
+  
+      # Year of citation
+      ?citing_work wdt:P577 ?date .
+      BIND(YEAR(?date) AS ?year_)
+      BIND(xsd:date(?date) AS ?pubDate_)
+    }
+    GROUP BY ?year_ ?intention ?intentionLabel
+  }
+}
+GROUP BY ?year_ ?intention ?intentionLabel
+ORDER BY DESC(?year_)
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: outgoing"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_outgoing.sparql> ;
+  scholia:aspect scholiaAspect:Retraction ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Retraction aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/retraction_cito-incoming-chart.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,44 +16,27 @@
 q:145 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-#defaultView:Timeline{"hide": ["?end_time", "?start_time"]}
-
-PREFIX target: <http://www.wikidata.org/entity/Q27990087>
-
-SELECT DISTINCT ?start_time ?end_time ?description WHERE {
-  {  
-    target: (wdt:P571 | wdt:P580) ?start_time ;
-      (wdt:P576 | wdt:P582) ?end_time .
-    BIND("Project time" AS ?description)
-  } 
-  UNION 
-  {  
-    target: (^wdt:P1344 | wdt:P710)+ ?project .
-    ?project (wdt:P571 | wdt:P580) ?start_time ;
-             (wdt:P576 | wdt:P582) ?end_time .
-    ?project rdfs:label ?projectName .
-    FILTER (lang(?projectName) = "en")
-    BIND(?projectName AS ?description)
-  }   
-  UNION 
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?publication_date ?work ?workLabel WHERE {
   {
-    ?work wdt:P859/(wdt:P1344|^wdt:P710)* target: ;
-                wdt:P577 ?start_time .
-    BIND("Publication" AS ?description)
+    SELECT ?publication_datetime ?work WHERE {
+      ?work wdt:P4510/wdt:P279* target: ;
+            wdt:P577 ?publication_datetime .
+    }
+    ORDER BY DESC(?publication_datetime)
+    LIMIT 500
   }
-  UNION
-  {
-    ?event wdt:P859 target: .
-    ?event wdt:P585 | wdt:P580 ?start_time .
-    BIND("📅 Sponsored event" AS ?description)
-  }
-}''';
-  scholia:aspect scholiaAspect:Project ;
-  scholia:defaultView scholiaView:Timeline ;
-  rdfs:comment "Project aspect: timeline"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/project_timeline.sparql> ;
+  BIND (xsd:date(?publication_datetime) AS ?publication_date)
+}
+ORDER BY DESC(?publication_date)
+''';
+  scholia:aspect scholiaAspect:Ontology ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Ontology aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/ontology_recent-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,31 +16,60 @@
 q:096 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+  sh:select '''# List of authors for a work
 PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q14860818>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT
-  ?ortholog ?orthologLabel ?orthologDescription
-  ?taxon ?taxonLabel ?taxonDescription
-WITH {
-  SELECT ?ortholog ?taxon
-  WHERE {
-    target: wdt:P31 wd:Q7187;
-         wdt:P684 ?ortholog .
-    ?ortholog wdt:P703 ?taxon .
-  }
-} AS %result 
+SELECT DISTINCT
+  # Author order
+  ?order ?academic_age
+  # Author item and label
+  ?author ?authorLabel ?authorUrl ?authorDescription
 WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-}''';
-  scholia:aspect scholiaAspect:Gene ;
-  rdfs:comment "Gene aspect: orthologs"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/gene_orthologs.sparql> ;
+  {
+    wd:{{ q }} p:P50 ?statement .
+    ?statement ps:P50 ?_author .
+
+    BIND (?_authorLabel AS ?author)
+    BIND (?_authorDescription AS ?authorDescription)
+    BIND (CONCAT("../author/", SUBSTR(STR(?_author), 32)) AS ?authorUrl)
+    BIND (?_authorLabel AS ?authorLabel)
+
+    OPTIONAL {
+      SELECT ?_author (MAX(?academic_age_) AS ?academic_age) {
+        wd:{{ q }} wdt:P50 ?_author ;
+                wdt:P577 ?publication_date .
+        [] wdt:P31/wdt:P279* wd:Q55915575 ;
+          wdt:P50 ?_author ;
+          wdt:P577 ?other_publication_date .
+        BIND (YEAR(?publication_date) - YEAR(?other_publication_date) AS ?academic_age_)
+      } GROUP BY ?_author
+    }
+  } UNION {
+    wd:{{ q }} p:P2093 ?statement .
+    ?statement ps:P2093 ?_author
+    BIND (CONCAT(?_author, " ↗") AS ?author)
+    BIND (CONCAT("https://author-disambiguator.toolforge.org/names_oauth.php?doit=Look+for+author&name=", ENCODE_FOR_URI(?_author)) AS ?authorUrl)
+  }
+
+  OPTIONAL { ?statement pq:P1545 ?order_ . }
+  BIND (xsd:integer(?order_) AS ?order)
+
+  OPTIONAL { ?_author wdt:P496 ?orcid_ . }
+  # Either show the ORCID iD or construct part of a URL to search on the ORCID homepage
+  BIND (COALESCE(?orcid_, CONCAT("orcid-search/search/?searchQuery=", ENCODE_FOR_URI(?_authorLabel))) AS ?orcid)
+}
+ORDER BY ?order
+''';
+  scholia:aspect scholiaAspect:Dataset ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Dataset aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/dataset_list-of-authors.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

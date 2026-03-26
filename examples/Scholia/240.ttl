@@ -16,70 +16,40 @@
 q:240 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pr: <http://www.wikidata.org/prop/reference/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-#defaultView:BarChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q28942417>
-
-SELECT
-  (STR(?year_) AS ?year)
-  (SUM(?count_) AS ?count)
-  ?kind
-WHERE {
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?publication_date ?number_of_citations ?work ?workLabel (CONCAT("/work/", SUBSTR(STR(?work),32)) AS ?workUrl) ?quote WHERE {
   {
-    VALUES ?year_ { 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013
-                    2014 2015 2016 2017 2018 2019 2020 2021 2022 2023 }
-    BIND(0 AS ?count_)
-    BIND("_" AS ?kind)
-  }
-  UNION 
-  {
-    SELECT
-      ?year_
-      (COUNT(DISTINCT ?citing_work) AS ?count_)
-      ?kind
-    WHERE {
-      ?citing_work wdt:P2860 target: .
-  
-      # Detect self-citations
-      BIND(IF(EXISTS { target: wdt:P50 ?selfauthor . ?citing_work  wdt:P50 ?selfauthor } ,
-        "detected incoming self-citations",
-        "citations from others or non-detected self-citations") AS ?kind)
-
-      # Year of citation
-      ?citing_work wdt:P577 ?date .
-      BIND(YEAR(?date) AS ?year_)
+    SELECT (MIN(?date) AS ?publication_date) (COUNT(?citing_work) AS ?number_of_citations) ?work (SAMPLE(?quote_) AS ?quote) WHERE {
+      ?work p:P859+ ?sponsor_statement .
+      ?sponsor_statement ps:P859+ target: .
+      OPTIONAL {
+        ?sponsor_statement prov:wasDerivedFrom/pr:P1683 ?quote_ .
+      }
+      OPTIONAL {
+        ?work wdt:P577 ?datetime .
+        BIND (xsd:date(?datetime) AS ?date)
+      }
+      OPTIONAL {
+        ?citing_work wdt:P2860 ?work
+      }
     }
-    GROUP BY ?year_ ?kind
-  }
-  UNION 
-  {
-    SELECT
-      ?year_
-      (COUNT(DISTINCT ?cited_work) AS ?count_)
-      ?kind
-    WHERE {
-      target: wdt:P2860 ?cited_work .
-  
-      # Detect self-citations
-      BIND(IF(EXISTS { ?cited_work wdt:P50 ?selfauthor . target: wdt:P50 ?selfauthor },
-        "detected outgoing self-citations",
-        "outgoing citations to others or non-detected self-citations") AS ?kind)
-
-      # Year of citation
-      ?cited_work wdt:P577 ?date .
-      BIND(YEAR(?date) AS ?year_)
-    }
-    GROUP BY ?year_ ?kind
+    GROUP BY ?work
   }
 }
-GROUP BY ?year_ ?kind
-ORDER BY DESC(?year_)
+ORDER BY DESC(?publication_date) DESC(?number_of_citations)
+LIMIT 1000
 ''';
-  scholia:aspect scholiaAspect:Work ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Work aspect: citations per year"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/work_citations-per-year.sparql> ;
+  scholia:aspect scholiaAspect:Sponsor ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Sponsor aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/sponsor_recently-published-sponsored-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

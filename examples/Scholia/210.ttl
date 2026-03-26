@@ -16,31 +16,29 @@
 q:210 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-# title: Citation distribution for a venue
-
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-#defaultView:LineChart
-SELECT
-  ?number_of_citations (COUNT(?work) AS ?count)
-WHERE {
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?number_of_editorships ?editor ?editorLabel ?example_venue ?example_venueLabel WHERE {
+  # Label the result
   {
-    SELECT ?work (COUNT(?citing_work) AS ?number_of_citations)
+    SELECT (COUNT(?venue_) AS ?number_of_editorships) ?editor (SAMPLE(?venue_) AS ?example_venue)
+    # (GROUP_CONCAT(?journal_label; separator=" // ") AS ?venues)
     WHERE {
-      ?work wdt:P1433 target: .
-      OPTIONAL { ?citing_work wdt:P2860 ?work . }
+      # Find editors for a work published by publisher
+      ?venue_ wdt:P123 target: .
+      ?venue_ wdt:P98 | wdt:P5769 ?editor .
+      # ?venue_ rdfs:label ?venue_label . FILTER(LANG(?venue_label) = 'en')
     }
-    GROUP BY ?work 
+    GROUP BY ?editor
   }
-} 
-GROUP BY ?number_of_citations
-ORDER BY DESC(?number_of_citations)
+}
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Citation distribution for a venue"@en ;
-  scholia:defaultView scholiaView:LineChart ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_citation-distribution.sparql> ;
+  scholia:aspect scholiaAspect:Publisher ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Publisher aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_editors.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

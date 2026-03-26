@@ -16,47 +16,27 @@
 q:086 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target1: <http://www.wikidata.org/entity/{{ q1 }}>
+PREFIX target2: <http://www.wikidata.org/entity/{{ q2 }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# Scholia
-
-PREFIX target: <http://www.wikidata.org/entity/Q133457282>
-
-SELECT
-  ?work ?workLabel
-  ?authors ?authorsUrl
-  ?topics ?topicsUrl
-WITH {
-  SELECT 
-    ?work
-    (GROUP_CONCAT(DISTINCT ?author_label; separator=", ") AS ?authors)
-    (CONCAT("../authors/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?author), 32); separator=",")) AS ?authorsUrl)    
-    (GROUP_CONCAT(DISTINCT ?topic_label; separator=", ") AS ?topics)
-    (CONCAT("../topics/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?topic), 32); separator=",")) AS ?topicsUrl)
-  WHERE {
-    ?work wdt:P1433 / wdt:P4745 target: .
-    OPTIONAL {
-      ?work wdt:P50 ?author .
-      ?author rdfs:label ?author_label . FILTER(LANG(?author_label) = "en")
-    }
-    OPTIONAL {
-      ?work wdt:P921 ?topic .
-      ?topic rdfs:label ?topic_label . FILTER(LANG(?topic_label) = "en")
+SELECT ?author1 ?author1Label ?author2 ?author2Label WHERE {
+  {
+    SELECT DISTINCT ?author1 ?author2 WHERE {
+      ?author1 (wdt:P108 | wdt:P1416)/wdt:P17 target1: .
+      ?author2 (wdt:P108 | wdt:P1416)/wdt:P17 target1: .
+      ?work wdt:P921/(wdt:P361+ | wdt:P1269+ | (wdt:P31*/wdt:P279*)) target2: .
+      ?work wdt:P50 ?author1 .
+      ?work wdt:P50 ?author2 .
+      FILTER (?author1 != ?author2)
     }
   }
-  GROUP BY ?work
-} AS %results
-WHERE {
-  INCLUDE %results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
 ''';
-  scholia:aspect scholiaAspect:Event ;
-  rdfs:comment "Event aspect: proceedings"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_proceedings.sparql> ;
+  scholia:aspect scholiaAspect:Country-topic ;
+  scholia:defaultView scholiaView:Graph ;
+  rdfs:comment "Country-topic aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/country-topic_coauthors-graph.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

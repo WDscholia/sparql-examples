@@ -16,45 +16,52 @@
 q:049 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX mwapi: <>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q2270>
-
-# title: related chemical structures
-SELECT ?mol ?molLabel ?InChIKey ?CAS ?ChemSpider ?PubChem_CID WITH {
-  SELECT ?queryKey ?srsearch ?filter WHERE {
-    target: wdt:P235 ?queryKey .
-    BIND (CONCAT(substr($queryKey,1,14), " haswbstatement:P235") AS ?srsearch)
-    BIND (CONCAT("^", substr($queryKey,1,14)) AS ?filter)
+SELECT DISTINCT ?description ?value ?valueUrl WHERE {
+  {
+    SELECT (1 AS ?order) ("Named after" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../topic/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P138 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
   }
-} AS %MOLS WITH {
-  SELECT ?mol ?InChIKey WHERE {
-    INCLUDE %MOLS
-    SERVICE wikibase:mwapi {
-        bd:serviceParam wikibase:endpoint "www.wikidata.org";
-        wikibase:api "Search";
-        mwapi:srsearch ?srsearch;
-        mwapi:srlimit "max".
-        ?mol wikibase:apiOutputItem mwapi:title.
-      }
-    ?mol wdt:P235 ?InChIKey .
-    FILTER (regex(str(?InChIKey), ?filter))
-    FILTER (?InChIKey != ?queryKey)
+  UNION {
+    SELECT (2 AS ?order) ("Discoverer" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../topic/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P61 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
   }
-} AS %MOLS2 {
-  INCLUDE %MOLS2
-  OPTIONAL { ?mol wdt:P231 ?CAS }
-  OPTIONAL { ?mol wdt:P661 ?ChemSpider }
-  OPTIONAL { ?mol wdt:P662 ?PubChem_CID }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
+  UNION {
+    SELECT (3 AS ?order) ("Oxidation states" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) {
+      BIND (1 AS ?dummy)
+      target: wdt:P1121 ?value_ .
+    }
+    GROUP BY ?dummy
+  }
+  UNION {
+    SELECT (4 AS ?order) ("Electron configuration" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) {
+      BIND (1 AS ?dummy)
+      target: wdt:P8000 ?value_ .
+    }
+    GROUP BY ?dummy
+  }
 }
+ORDER BY ?order
 ''';
-  scholia:aspect scholiaAspect:Chemical ;
-  rdfs:comment "Chemical aspect: related chemical structures"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical_related.sparql> ;
+  scholia:aspect scholiaAspect:Chemical-element ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Chemical-element aspect:  data for this chemical element"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-element_data.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -17,36 +17,32 @@ q:167 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:BubbleChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q1635410>
-
-SELECT
-  ?count ?topic ?topicLabel
-WITH{
-  SELECT
-    (COUNT(?work) AS ?count) ?topic
-  WHERE {
-    ?work (wdt:P2283 | wdt:P4510) / wdt:P279* target: .
-    ?work wdt:P921 ?topic .
+SELECT ?number_of_works ?topic ?topicLabel ?organization ?organizationLabel WHERE {
+  # Join the work and citation counts
+  { # Count the number of works per topic per organization
+    SELECT (COUNT(?work) AS ?number_of_works) ?topic ?organization WHERE {
+      { # Find works associated with the organizations
+        SELECT
+        # Should not count authors twice
+        DISTINCT ?work ?organization WHERE {
+          VALUES ?organization { {% for q in qs %} wd:{{ q }} {% endfor %} }
+          ?work wdt:P50/(wdt:P108 | wdt:P463 | (wdt:P1416/wdt:P361*)) ?organization .
+        }
+      }
+      ?work wdt:P921 ?topic .
+    }
+    GROUP BY ?topic ?organization
   }
-  GROUP BY ?topic
-  ORDER BY DESC(?count)
-  LIMIT 100
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
 }
-ORDER BY DESC(?count)
+ORDER BY DESC(?number_of_works)
+LIMIT 100
 ''';
-  scholia:aspect scholiaAspect:Software ;
-  scholia:defaultView scholiaView:BubbleChart ;
-  rdfs:comment "Software aspect: topics"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_topics.sparql> ;
+  scholia:aspect scholiaAspect:Organizations ;
+  scholia:defaultView scholiaView:TreeMap ;
+  rdfs:comment "Organizations aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organizations_topic-tree-map.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

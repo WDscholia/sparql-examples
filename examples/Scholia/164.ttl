@@ -17,36 +17,51 @@ q:164 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q1635410>
-
-SELECT 
-  ?count 
-  ?software ?softwareLabel ?softwareDescription (CONCAT("/software/", SUBSTR(STR(?software), 32)) AS ?softwareUrl)
-WITH {
-  SELECT 
-    (COUNT(?other_software) AS ?count)
-    ?software 
-  {
-    ?software wdt:P1547+ target: .
-    OPTIONAL {
-      ?other_software wdt:P1547+ ?software .
-    } 
+SELECT (?year_of_citation AS ?year) (?number_of_citations / ?number_of_works AS ?citations_to_works_ratio) ?number_of_works ?number_of_citations ?organization ?organizationLabel WHERE {
+  # Join the work and citation counts
+  { # Count the number of citations received per year per organization
+    SELECT ?year_of_citation (COUNT(?work) AS ?number_of_citations) ?organization WHERE {
+      { # Find works associated with the organizations
+        SELECT
+        # Should not count authors twice
+        DISTINCT ?work ?organization WHERE {
+          VALUES ?organization { {% for q in qs %} wd:{{ q }} {% endfor %} }
+          ?author wdt:P108 | wdt:P463 | (wdt:P1416/wdt:P361*) ?organization .
+          ?work wdt:P50 ?author .
+        }
+      }
+      ?citing_work wdt:P2860 ?work .
+      ?citing_work wdt:P577 ?citing_publication_date .
+      BIND (STR(YEAR(?citing_publication_date)) AS ?year_of_citation)
+    }
+    GROUP BY ?year_of_citation ?organization
   }
-  GROUP BY ?software
-  ORDER BY DESC(?count)
-  LIMIT 500
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+  { # Count the number of works published per year per organization
+    SELECT ?year_of_cited (COUNT(?work) AS ?number_of_works) ?organization WHERE {
+      { # Find works associated with the organizations
+        SELECT
+        # Should not count authors twice
+        DISTINCT ?work ?organization WHERE {
+          VALUES ?organization { {% for q in qs %} wd:{{ q }} {% endfor %} }
+          ?author wdt:P108 | wdt:P463 | (wdt:P1416/wdt:P361*) ?organization .
+          ?work wdt:P50 ?author .
+        }
+      }
+      ?work wdt:P577 ?cited_publication_date .
+      BIND (STR(YEAR(?cited_publication_date)) AS ?year_of_cited)
+    }
+    GROUP BY ?year_of_cited ?organization
+  }
+  FILTER (?year_of_citation = ?year_of_cited)
 }
-ORDER BY DESC(?count)''';
-  scholia:aspect scholiaAspect:Software ;
-  rdfs:comment "Software aspect: dependent software"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_dependent-software.sparql> ;
+ORDER BY ?year_of_citation
+''';
+  scholia:aspect scholiaAspect:Organizations ;
+  scholia:defaultView scholiaView:LineChart ;
+  rdfs:comment "Organizations aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organizations_citations-to-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

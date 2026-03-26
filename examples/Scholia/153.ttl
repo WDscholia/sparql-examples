@@ -16,51 +16,41 @@
 q:153 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-#defaultView:BarChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q21109365>
-
-# Inspired from LEGOLAS - http://abel.lis.illinois.edu/legolas/
-# Shubhanshu Mishra, Vetle Torvik
-select ?year (count(?work) as ?number_of_publications) where {
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?author1 ?author1Label ?image1 ?rgb ?author2 ?author2Label ?image2 WHERE {
   {
-    select (str(?year_) as ?year) (0 as ?pages) where {
-      # default values = 0
-      ?year_item wdt:P31 wd:Q577 . 
-      ?year_item wdt:P585 ?date .
-      bind(year(?date) as ?year_)
-      {
-        select (min(?year_) as ?earliest_year) where {
-          { ?work wdt:P921/wdt:P31*/wdt:P279* target: . }
-          union { ?work wdt:P921/wdt:P361+ target: . }
-          union { ?work wdt:P921/wdt:P1269+ target: . }
-          ?work wdt:P577 ?publication_date . 
-          bind(year(?publication_date) as ?year_)
-        }
+    SELECT ?author1 (SAMPLE(?image1_) AS ?image1) ?author2 (SAMPLE(?image2_) AS ?image2) (SAMPLE(?rgb_) AS ?rgb) WHERE {
+      target: ^wdt:P361*/^(wdt:P108 | wdt:P1416 | wdt:P463) ?author1, ?author2 .
+      ?work wdt:P50 ?author1, ?author2 .
+      # Only display co-authorship for certain types of documents
+      # Journal and conference articles, books, not (yet?) software
+      VALUES ?publication_type { wd:Q13442814 wd:Q571 wd:Q26973022 wd:Q17928402 wd:Q947859 wd:Q54670950 }
+      FILTER EXISTS {
+        ?work wdt:P31 ?publication_type .
       }
-      bind(year(now()) as ?next_year)
-      filter (?year_ >= ?earliest_year && ?year_ <= ?next_year)
+      # No self-links.
+      FILTER (?author1 != ?author2)
+      # Images
+      OPTIONAL {
+        ?author1 wdt:P18 ?image1_
+      }
+      OPTIONAL {
+        ?author2 wdt:P18 ?image2_
+      }
+      # Coloring of the nodes
+      BIND ("FFFFFF" AS ?rgb_)
     }
-  }
-  union {
-    select ?work (min(?years) as ?year) where {
-      { ?work wdt:P921/wdt:P31*/wdt:P279* target: . }
-      union { ?work wdt:P921/wdt:P361+ target: . }
-      union { ?work wdt:P921/wdt:P1269+ target: . }
-      ?work wdt:P577 ?dates .
-      bind(str(year(?dates)) as ?years) .
-    }
-    group by ?work 
+    GROUP BY ?author1 ?author2
   }
 }
-group by ?year 
-order by ?year''';
-  scholia:aspect scholiaAspect:Protein ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Protein aspect: publications per year"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/protein_publications-per-year.sparql> ;
+''';
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView:Graph ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_co-author-graph.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

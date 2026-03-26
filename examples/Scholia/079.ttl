@@ -16,78 +16,60 @@
 q:079 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q47501052>
-
-SELECT ?score ?topic ?topicLabel ?topicDescription
-(CONCAT("/topic/", SUBSTR(STR(?topic), 32)) AS ?topicUrl)
-WITH {
-  SELECT
-    DISTINCT ?person
-  WHERE {
-    ?event (wdt:P179 | wdt:P31) target: .
-    {
-      # speaker
-      ?event wdt:P823 ?person .
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT (STR(?year_) AS ?year) (COUNT(?work) AS ?number_of_publications)
+# Work type used to color the bar chart
+?type WHERE {
+  {
+    { # Find works with the topic. Also report the year
+      SELECT ?work (MIN(?years) AS ?year_) (1 AS ?dummy) (SAMPLE(?article_type_) AS ?article_type) WHERE {
+        ?work wdt:P921/(wdt:P31*/wdt:P279* | wdt:P361+ | wdt:P1269+) target: .
+        ?work wdt:P577 ?dates .
+        BIND (YEAR(?dates) AS ?years) .
+        ?work wdt:P31 ?article_type_ .
+      }
+      GROUP BY ?work
     }
-    UNION
-    {
-      # organizer
-      ?event wdt:P664 ?person .
-    }
-    UNION
-    {
-      # participant
-      ?person wdt:P1344 | ^wdt:P710 ?event .
-    }
-    UNION
-    {
-      # author
-      ?person ^wdt:P50 / wdt:P1433 / wdt:P4745 ?event .
-    }
+    ?article_type rdfs:label ?type . FILTER (LANG(?type) = "en")
   }
-} AS %people  
-WITH {
-  SELECT
-    (SUM(?score_) AS ?score) ?topic
-  WHERE {
-
-    # For some reason a path query does not work here.
-    { ?event wdt:P179 target: . }
-    UNION
-    { ?event wdt:P31 target: . }
-
+  UNION {
     {
-      ?event wdt:P921 ?topic .
-      BIND(50 AS ?score_)
+      SELECT ?year_ WHERE {
+        # default values = 0
+        ?year_item wdt:P31 wd:Q577 .
+        ?year_item wdt:P585 ?date .
+        BIND (YEAR(?date) AS ?year_)
+      }
     }
-    UNION
-    {
-      INCLUDE %people
-      ?person ^wdt:P50 / wdt:P921 ?topic .
-      BIND(1 AS ?score_)
-    }
-    UNION
-    {
-      ?event ^wdt:P4745 / ^wdt:P1433 / wdt:P921 ?topic .
-      BIND(7 AS ?score_)
-    }
+    BIND ("_" AS ?type)
   }
-  GROUP BY ?topic
-} AS %results
-WHERE {
-  INCLUDE %results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,de,es,fr,jp,no,ru,sv,zh". }
+  { # Find earliest publication year
+    SELECT (MIN(?year_) AS ?earliest_year) WHERE {
+      { # Find works with the topic. Also report the year
+        SELECT ?work (MIN(?years) AS ?year_) (1 AS ?dummy) (SAMPLE(?article_type_) AS ?article_type) WHERE {
+          ?work wdt:P921/(wdt:P31*/wdt:P279* | wdt:P361+ | wdt:P1269+) target: .
+          ?work wdt:P577 ?dates .
+          BIND (YEAR(?dates) AS ?years) .
+          ?work wdt:P31 ?article_type_ .
+        }
+        GROUP BY ?work
+      }
+    }
+    GROUP BY ?dummy
+  }
+  BIND (YEAR(NOW() ) AS ?this_year )
+  FILTER ( ?year_ >= ?earliest_year && ?year_ <= ?this_year && ?year_ >= YEAR ( "1900-01-01" ^^ xsd:date ) )
 }
-ORDER BY DESC(?score)
-LIMIT 200
+GROUP BY ?year_ ?type
+ORDER BY ?year
 ''';
-  scholia:aspect scholiaAspect:Event-series ;
-  rdfs:comment "Event-series aspect: topics"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event-series_topics.sparql> ;
+  scholia:aspect scholiaAspect:Complex ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Complex aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/complex_articles-by-year.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

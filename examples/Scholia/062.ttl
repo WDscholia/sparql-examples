@@ -18,36 +18,26 @@ q:062 a sh:SPARQLExecutable,
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# title: Organizations for a specific country
-PREFIX target: <http://www.wikidata.org/entity/Q35>
-
-SELECT
-  ?number_of_authors
-  ?number_of_works
-  ?organization ?organizationLabel
-WITH {  
-  SELECT
-    ?organization
-    (COUNT(DISTINCT ?author) AS ?number_of_authors)
-    (COUNT(DISTINCT ?work) AS ?number_of_works)
-  WHERE {
-    ?organization wdt:P17 target: .
-    ?author wdt:P108 | wdt:P463 | wdt:P1416/wdt:P361* ?organization .
-    ?work wdt:P50 ?author .
-  }
-  GROUP BY ?organization 
-} AS %results
-WHERE {
-  INCLUDE %results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,es,fr,jp,nl,no,ru,sv,zh". }
+SELECT ?intention ?intentionLabel (CONCAT("/cito/", SUBSTR(STR(?intention),32)) AS ?intentionUrl) (COUNT(DISTINCT ?citationStatement) AS ?citations) (COUNT(DISTINCT ?citingArticle) AS ?articles) WHERE {
+  ?citingArticle p:P2860 ?citationStatement .
+  ?citationStatement pq:P3712 ?intention ;
+                     ps:P2860 ?citedArticle .
+  ?intention wdt:P31 wd:Q96471816 ;
+             wdt:P2888 ?cito .
+  ?intention rdfs:label ?intentionLabel . FILTER(LANG(?intentionLabel) = 'en' || LANG(?intentionLabel) = 'mul')
 }
-ORDER BY DESC(?number_of_authors) DESC(?number_of_works)
+GROUP BY ?cito ?intention ?intentionLabel
+ORDER BY DESC(?citations)
 ''';
-  scholia:aspect scholiaAspect:Country ;
-  rdfs:comment "Country aspect: Organizations for a specific country"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/country_organizations.sparql> ;
+  scholia:aspect scholiaAspect:Cito-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Cito-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/cito-index_article-counts.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

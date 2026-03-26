@@ -16,52 +16,72 @@
 q:045 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+# Inspired from LEGOLAS - http://abel.lis.illinois.edu/legolas/
+# Shubhanshu Mishra, Vetle Torvik
+PREFIX pr: <http://www.wikidata.org/prop/reference/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q2270>
-
-# title: identifiers for this chemical
-SELECT
-  ?Identifier ?IdentifierLabel
-  ?Value (SAMPLE(?idUrls) as ?ValueUrl)
-  ?IdentifierDescription
-WITH {
-  SELECT ?Identifier ?Value ?formatterurl WHERE {
-    target: ?IDdir ?Value .
-    ?Identifier wikibase:directClaim ?IDdir ;
-            wdt:P31 wd:Q19833835 .
-    OPTIONAL { 
-      ?Identifier wdt:P1630 ?formatterurl .
-    }
-    FILTER (?Identifier != wd:P233)
-    FILTER (?Identifier != wd:P234)
-    FILTER (?Identifier != wd:P2017)
-  } LIMIT 500
-} AS %RESULTS {
-  { SELECT * WHERE {
-      INCLUDE %RESULTS
-      FILTER (?Identifier = wd:P234)
-      BIND(IRI(REPLACE(?formatterurl, '\\\\$1', ENCODE_FOR_URI(str(?Value)))) AS ?idUrls).
-    }
-  } UNION {
-    SELECT * WHERE {
-      INCLUDE %RESULTS
-      FILTER (?Identifier != wd:P234)
-      BIND(IRI(REPLACE(?formatterurl, '\\\\$1', str(?Value))) AS ?idUrls).
-    }
+SELECT ?year (COUNT(?work) AS ?number_of_publications) WHERE {
+  {
+    SELECT (STR(?year_) AS ?year) (0 AS ?pages) WHERE {
+      # default values = 0
+      ?year_item wdt:P31 wd:Q577 .
+      ?year_item wdt:P585 ?date .
+      BIND (YEAR(?date) AS ?year_)
+      {
+        SELECT (MIN(?year_) AS ?earliest_year) WHERE {
+          {
+            ?work wdt:P921/wdt:P279* target: .
+          }
+          UNION {
+            ?work wdt:P921/wdt:P361+ target: .
+          }
+          UNION {
+            ?work wdt:P921/wdt:P1269+ target: .
+          }
+          UNION {
+            target: ?propp ?statement .
+            ?statement a wikibase:BestRank ;
+                       prov:wasDerivedFrom/pr:P248 ?work .
+          }
+          ?work wdt:P577 ?publication_date .
+          BIND (YEAR(?publication_date) AS ?year_)
+        }
+      }
+      BIND (YEAR(NOW() 
+    ) AS ?next_year ) FILTER ( ?year_ >= ?earliest_year && ?year_ <= ?next_year )}
   }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+  UNION {
+    SELECT ?work (MIN(?years) AS ?year) WHERE {
+      {
+        ?work wdt:P921/wdt:P279* target: .
+      }
+      UNION {
+        ?work wdt:P921/wdt:P361+ target: .
+      }
+      UNION {
+        ?work wdt:P921/wdt:P1269+ target: .
+      }
+      UNION {
+        target: ?propp ?statement .
+        ?statement a wikibase:BestRank ;
+                   prov:wasDerivedFrom/pr:P248 ?work .
+      }
+      ?work wdt:P577 ?dates .
+      BIND (STR(YEAR(?dates)) AS ?years) .
+    }
+    GROUP BY ?work
+  }
 }
-GROUP BY ?Identifier ?IdentifierLabel ?IdentifierDescription ?Value
-ORDER BY ASC(?IdentifierLabel)
-
+GROUP BY ?year
+ORDER BY ?year
 ''';
-  scholia:aspect scholiaAspect:Chemical ;
-  rdfs:comment "Chemical aspect: identifiers for this chemical"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical_identifiers.sparql> ;
+  scholia:aspect scholiaAspect:Chemical-class ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Chemical-class aspect:  histogram of the number of articles per year about this chemical class"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-class_publications-per-year.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

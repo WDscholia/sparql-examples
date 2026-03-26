@@ -16,31 +16,31 @@
 q:152 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q21109365>
-
-SELECT ?type ?complex_or_process ?complex_or_processLabel
-WITH {
-  SELECT DISTINCT ?type ?complex_or_process WHERE {
-    VALUES ?part { target: }
-    VALUES ?process { wd:Q2996394 wd:Q4915012 }
-    { ?part ^wdt:P527 ?complex_or_process . ?complex_or_process wdt:P31 wd:Q22325163 ; BIND ("complex" AS ?type ) }
-    UNION
-    { ?part ^wdt:P527 ?complex_or_process . ?complex_or_process wdt:P31 ?process ; BIND ("biological process" AS ?type ) }
+SELECT ?count ?award ?awardLabel ?recipients ?recipientsUrl WHERE {
+  {
+    SELECT (COUNT(?researcher) AS ?count) ?award (GROUP_CONCAT(?researcher_label; SEPARATOR=", ") AS ?recipients) (CONCAT("../authors/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?researcher),32); SEPARATOR=",")) AS ?recipientsUrl) WHERE {
+      # hint:Query hint:optimizer "None" .
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+        }
+      }
+      ?researcher wdt:P166 ?award .
+      ?researcher rdfs:label ?researcher_label . FILTER (LANG(?researcher_label) = 'en')
+    }
+    GROUP BY ?award
   }
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
-} ORDER BY ASC(?partLabel)
+}
+ORDER BY DESC(?count)
 ''';
-  scholia:aspect scholiaAspect:Protein ;
-  rdfs:comment "Protein aspect: participates in"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/protein_participates-in.sparql> ;
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView:Table ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_awards.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

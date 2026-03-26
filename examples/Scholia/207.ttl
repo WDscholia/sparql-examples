@@ -16,36 +16,32 @@
 q:207 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# title: Author images for a specific venue
-
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-#defaultView:ImageGrid
-SELECT (SAMPLE(?image_) AS ?image) ?author ?authorLabel ?count
-WITH {
-  SELECT ?author (COUNT(?work) AS ?count) WHERE {
-    ?work wdt:P1433 target:;
-          wdt:P50 ?author .
+SELECT ?count ?protein ?proteinLabel ?species ?speciesLabel (?functions AS ?property_value) WHERE {
+  {
+    SELECT ?protein (COUNT(?function) AS ?count) (GROUP_CONCAT(?function_label; SEPARATOR=" // ") AS ?functions) WHERE {
+      BIND (target: AS ?query_protein)
+      ?query_protein wdt:P680 | wdt:P681 | wdt:P682 | wdt:P129 ?function .
+      FILTER (?query_protein != ?protein)
+      ?protein wdt:P680 | wdt:P681 | wdt:P682 | wdt:P129 ?function .
+      ?function rdfs:label ?function_label FILTER (LANG(?function_label) = "en")
+    }
+    GROUP BY ?protein
   }
-  GROUP BY ?author
-} AS %authors
-WHERE {
-  INCLUDE %authors
-  ?author wdt:P18 ?image_ .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
+  OPTIONAL {
+    ?protein wdt:P703 ?species .
+  }
 }
-GROUP BY ?author ?authorLabel ?count
 ORDER BY DESC(?count)
-LIMIT 50  
+LIMIT 500
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Author images for a specific venue"@en ;
-  scholia:defaultView scholiaView:ImageGrid ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_author-images.sparql> ;
+  scholia:aspect scholiaAspect:Protein ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Protein aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/protein_similar-proteins.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,44 +16,37 @@
 q:158 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+# Pages per year bar chart of an organization
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q73820>
-
-SELECT
-  (SAMPLE(?number_of_works_) AS ?number_of_works)
-  (MAX(?bfi) AS ?BFI)
-  ?journal ?journalLabel
-  (GROUP_CONCAT(?themes_labels; separator=", ") as ?theme)
-WITH {
-  SELECT 
-    ?journal
-    (COUNT(?work) AS ?number_of_works_)
-  WHERE {
-    ?journal wdt:P123 target: .
-    OPTIONAL { ?work wdt:P1433 ?journal . }
+SELECT ?year (SUM(?pages_per_author) AS ?number_of_pages) ?researcher ?researcherLabel WHERE {
+  {
+    SELECT ?researcher ?work ?year (SAMPLE(?pages) / COUNT(?researcher_of_paper) AS ?pages_per_author) WHERE {
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher wdt:P108 | wdt:P463 | (wdt:P1416/wdt:P361*) target: .
+        }
+      }
+      ?work (wdt:P50 | wdt:P2093) ?researcher_of_paper .
+      # Disabled to only look on scholarly articles
+      # ?work wdt:P31 wd:Q13442814 .
+      ?work wdt:P50 ?researcher ;
+            wdt:P1104 ?pages ;
+            wdt:P577 ?date .
+      BIND (STR(YEAR(?date)) AS ?year)
+    }
+    GROUP BY ?work ?researcher ?year
   }
-  GROUP BY ?journal 
-} AS %journals
-WHERE {
-  INCLUDE %journals
-  OPTIONAL {
-    ?journal wdt:P921 ?themes .
-    ?themes rdfs:label ?themes_labels .
-    FILTER (LANG(?themes_labels) = 'en')
-  }
-  OPTIONAL { ?journal wdt:P1240 ?bfi . }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
-} 
-GROUP BY ?journal ?journalLabel
-ORDER BY DESC(?number_of_works)
+}
+GROUP BY ?year ?researcher ?researcherLabel
+ORDER BY ?year
 ''';
-  scholia:aspect scholiaAspect:Publisher ;
-  rdfs:comment "Publisher aspect: journals"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_journals.sparql> ;
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_page-production.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

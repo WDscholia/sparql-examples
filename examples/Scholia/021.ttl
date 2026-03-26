@@ -16,32 +16,44 @@
 q:021 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-#defaultView:BubbleChart
-PREFIX target: <http://www.wikidata.org/entity/Q97270>
-
-SELECT ?count ?venue (SAMPLE(?venue_label_) AS ?venue_label) 
-WITH {
-  SELECT (COUNT(?work) as ?count) ?venue WHERE {
-    ?work wdt:P50 target: .
-    ?work wdt:P1433 ?venue .
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?score ?topic (COALESCE(?topicLabel_, REPLACE(STR(?topic), ".*/", "")) AS ?topicLabel) WHERE {
+  {
+    SELECT (SUM(?score_) AS ?score) ?topic WHERE {
+      {
+        target: wdt:P101 ?topic .
+        BIND (20 AS ?score_)
+      }
+      UNION {
+        SELECT (3 AS ?score_) ?topic WHERE {
+          ?work wdt:P50 target: ;
+                wdt:P921 ?topic .
+        }
+      }
+      UNION {
+        SELECT (1 AS ?score_) ?topic WHERE {
+          ?work wdt:P50 target: .
+          ?citing_work wdt:P2860 ?work .
+          ?citing_work wdt:P921 ?topic .
+        }
+      }
+    }
+    GROUP BY ?topic
   }
-  GROUP BY ?venue
-} AS %counts
-WHERE {
-  INCLUDE %counts
-  ?venue rdfs:label ?long_venue_label FILTER(LANG(?long_venue_label) = 'en')
-  OPTIONAL { ?venue wdt:P1813 ?short_name . }
-  BIND(COALESCE(?short_name, ?long_venue_label) AS ?venue_label_)
+  OPTIONAL {
+    ?topic rdfs:label ?topicLabel_ FILTER (LANG(?topicLabel_) = "en")
+  }
 }
-GROUP BY ?venue ?count
-ORDER BY DESC(?count)  
+ORDER BY DESC(?score)
+LIMIT 200
 ''';
   scholia:aspect scholiaAspect:Author ;
   scholia:defaultView scholiaView:BubbleChart ;
-  rdfs:comment "Author aspect: venue statistics chart"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/author_venue-statistics-chart.sparql> ;
+  rdfs:comment "Author aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/author_topic-scores.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

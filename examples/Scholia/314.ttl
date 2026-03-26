@@ -1,0 +1,51 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:314 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?date ?work ?workLabel (CONCAT("/work/", SUBSTR(STR(?work),32)) AS ?workUrl) ?topicsUrl ?topics WHERE {
+  {
+    SELECT (MAX(?dates) AS ?datetime) ?work (GROUP_CONCAT(DISTINCT ?topicLabel; SEPARATOR=" // ") AS ?topics) (CONCAT("../topics/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?topic),32); SEPARATOR=",")) AS ?topicsUrl) WHERE {
+      {
+        SELECT DISTINCT ?work WHERE {
+          ?work wdt:P6104|wdt:P5008 target: ;
+                wdt:P50 []
+        }
+      }
+      ?work wdt:P921 ?topic .
+      OPTIONAL {
+        ?work wdt:P577 ?dates .
+      }
+    }
+    GROUP BY ?work
+  }
+  # There is a problem with BC dates
+  # BIND(xsd:date(?datetime) AS ?date)
+  BIND (REPLACE(STR(?datetime), 'T.*', '') AS ?date)
+}
+GROUP BY ?date ?work ?workLabel ?topicsUrl ?topics
+ORDER BY DESC(?date)
+LIMIT 500
+''';
+  scholia:aspect scholiaAspect:Wikiproject ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Wikiproject aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/wikiproject_recently-published-works.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

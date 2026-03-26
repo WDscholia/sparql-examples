@@ -16,28 +16,89 @@
 q:144 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-# title: Statistics for projects identifiers
-SELECT ?count ?description {
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+SELECT DISTINCT ?description ?value ?valueUrl WHERE {
+  BIND (target: AS ?ontology)
   {
-    { SELECT (COUNT(*) AS ?count) WHERE { [] wdt:P3400 []. } }
-    BIND("Total number of projects with a CORDIS number" AS ?description)
+    BIND (1 AS ?order)
+    BIND ("Website" AS ?description)
+    ?ontology wdt:P856 ?value .
+    BIND (?value AS ?valueUrl)
   }
-  UNION 
-  {
-    { SELECT (COUNT(*) AS ?count) WHERE { [] wdt:P4870 []. } }
-    BIND("Total number of projects with a GEPRIS number" AS ?description)
+  UNION {
+    SELECT (2 AS ?order) ("Maintainer(s)" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../authors/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P126 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
   }
-  UNION 
-  {
-    { SELECT (COUNT(*) AS ?count) WHERE { [] wdt:P6536 []. } }
-    BIND("Total number of projects with a Gateway to Research Project ID" AS ?description)
+  UNION {
+    SELECT (3 AS ?order) ("Contributors" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../authors/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P50 | wdt:P178 | wdt:P767 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
+  }
+  UNION {
+    SELECT (4 AS ?order) ("Part of" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../topic/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P361 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
+  }
+  UNION {
+    SELECT (5 AS ?order) ("License" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../topic/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P275 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
+  }
+  UNION {
+    SELECT (6 AS ?order) ("Wikidata property" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P1687 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
+  }
+  UNION {
+    SELECT (7 AS ?order) ("🛑 Replaced by" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      ?iri wdt:P1365 target: .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
   }
 }
-ORDER BY DESC(?count)
+ORDER BY ?order
 ''';
-  scholia:aspect scholiaAspect:Project ;
-  rdfs:comment "Project aspect: Statistics for projects identifiers"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/project_statistics.sparql> ;
+  scholia:aspect scholiaAspect:Ontology ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Ontology aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/ontology_data.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

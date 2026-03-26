@@ -16,29 +16,71 @@
 q:042 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q2270>
-
-SELECT DISTINCT
-  ?pathway ?pathwayLabel
-  (CONCAT("/pathway/", SUBSTR(STR(?pathway), 32)) AS ?pathwayUrl)
-  ?pathwayDescription
-WHERE {
-  ?pathway wdt:P527 target: ;
-           wdt:P31 wd:Q2996394 .
-  target: wdt:P361 ?pathway .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+SELECT ?child ?childLabel ?rgb ?parent ?parentLabel WHERE {
+  {
+    SELECT ?child ?rgb ?parent WHERE {
+      {
+        # SELECT ?child ?rgb ?parent WHERE {
+        #   SERVICE gas:service {
+        #     gas:program gas:gasClass "com.bigdata.rdf.graph.analytics.BFS" ;
+        #                 gas:in target: ;
+        #                 gas:traversalDirection "Forward" ;
+        #                 gas:out ?child ;
+        #                 gas:out1 ?depth ;
+        #                 gas:out2 ?parent1 ;
+        #                 gas:linkType wdt:P279 ;
+        #   }
+        #   ?child wdt:P279 ?parent .
+        #   BIND (IF(?child = target:,"FF0000","FFFFFF") AS ?rgb)
+        # }
+        SELECT ?child ?rgb ?parent WHERE {
+          {
+            SELECT ?parent ?child  WHERE {
+              # Forward traversal: all parent classes and their direct subclasses
+              # compute all reachable parent classes
+              target: wdt:P279+ ?parent .
+              # compute all of their direct children
+              ?child wdt:P279 ?parent .
+              # ensure that the child class is a parent class to the target
+              target: wdt:P279* ?child .
+            } GROUP BY ?parent ?child
+          }
+          BIND (IF(?child = target:,"FF0000","FFFFFF") AS ?rgb)
+        }
+      }
+      UNION {
+        SELECT ?child ?rgb ?parent WHERE {
+          BIND (target: AS ?parent)
+          ?child wdt:P279 ?parent .
+          BIND ("DDDDDD" AS ?rgb)
+        }
+        LIMIT 10
+      }
+    }
+  }
+  VALUES ?classes { wd:Q15711994 # group of isomeric entities
+  wd:Q17339814 # group or class of chemical substances
+  wd:Q47154513 # structural class of chemical entities
+  wd:Q55640599 # group of chemical entities
+  wd:Q56256173 # class of chemical entities with similar applications or functions
+  wd:Q56256178 # class of chemical entities with similar source or occurrence
+  wd:Q55662456 # group of ortho, meta, para isomers
+  wd:Q59199015 # group of stereoisomers
+  wd:Q72070508 # group or class of chemical entities
+  wd:Q74892521 # imprecise class of chemical entities
 }
-ORDER BY ASC(?pathwayLabel)
-LIMIT 250
+  ?parent wdt:P31 ?classes . # hint:Prior hint:runFirst TRUE.
+  ?child rdfs:label ?childLabel . FILTER (LANG(?childLabel) = "en")
+  ?parent rdfs:label ?parentLabel . FILTER (LANG(?parentLabel) = "en")
+}
 ''';
-  scholia:aspect scholiaAspect:Chemical ;
-  rdfs:comment "Chemical aspect: biological processes"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical_biological-processes.sparql> ;
+  scholia:aspect scholiaAspect:Chemical-class ;
+  scholia:defaultView scholiaView:Graph ;
+  rdfs:comment "Chemical-class aspect:  network depiction of the class hierarchy"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-class_class-hierarchy.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

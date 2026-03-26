@@ -16,47 +16,35 @@
 q:128 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q124268563>
-
-# title: listings for this podcast
-SELECT
-  ?Identifier ?IdentifierLabel
-  ?value (SAMPLE(?idUrls) as ?valueUrl)
-  ?IdentifierDescription
-WITH {
-  SELECT ?Identifier ?Value ?formatterurl WHERE {
-    target: ?IDdir ?Value .
-    ?Identifier wikibase:directClaim ?IDdir ;
-            wdt:P31 wd:Q84574746 .
-    OPTIONAL { 
-      ?Identifier wdt:P1630 ?formatterurl .
-    }
-  } LIMIT 500
-} AS %RESULTS {
-  { SELECT * WHERE {
-      INCLUDE %RESULTS
-      BIND(IRI(REPLACE(?formatterurl, '\\\\$1', ENCODE_FOR_URI(str(?Value)))) AS ?idUrls).
-    }
-  } UNION {
+SELECT ?Identifier ?IdentifierLabel ?Value (SAMPLE(?idUrls) AS ?ValueUrl) ?IdentifierDescription {
+  {
     SELECT * WHERE {
-      INCLUDE %RESULTS
-      BIND(IRI(REPLACE(?formatterurl, '\\\\$1', str(?Value))) AS ?idUrls).
+      {
+        SELECT ?Identifier ?Value ?formatterurl WHERE {
+          target: ?IDdir ?Value .
+          ?Identifier wikibase:directClaim ?IDdir ;
+                      wdt:P31 wd:Q42415497 .
+          OPTIONAL {
+            ?Identifier wdt:P1630 ?formatterurl .
+          }
+        }
+        LIMIT 500
+      }
+      BIND (IRI(REPLACE(?formatterurl, '\\\\$1', STR(?Value))) AS ?idUrls) .
     }
   }
-  BIND(CONCAT(?Value, " ↗") AS ?value)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
-GROUP BY ?Identifier ?IdentifierLabel ?IdentifierDescription ?value
+GROUP BY ?Identifier ?IdentifierLabel ?IdentifierDescription ?Value
 ORDER BY ASC(?IdentifierLabel)
 ''';
-  scholia:aspect scholiaAspect:Podcast-episode ;
-  rdfs:comment "Podcast-episode aspect: listings for this podcast"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-episode_listings.sparql> ;
+  scholia:aspect scholiaAspect:Gene ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Gene aspect:  identifiers for this gene"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/gene_identifiers.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

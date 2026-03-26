@@ -17,29 +17,27 @@ q:218 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
 
-SELECT ?citedArticle ?citedArticleLabel (CONCAT("/work/", SUBSTR(STR(?citedArticle), 32), "#cito") AS ?citedArticleUrl)
-(COUNT(DISTINCT ?citingArticle) AS ?count) WHERE {
-  VALUES ?JOURNAL { target: }
-  VALUES ?INTENTION { wd:Q96472102 wd:Q96471820 wd:Q101149476 }
-  ?citingArticle p:P2860 ?citationStatement .
-  ?citationStatement pq:P3712 ?INTENTION ;
-                     ps:P2860 ?citedArticle .
-  ?citedArticle wdt:P1433 ?JOURNAL .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-} GROUP BY ?citedArticle ?citedArticleLabel
-  ORDER BY DESC(?count)
+SELECT ?works ?venue ?venueLabel (CONCAT("../venue/", SUBSTR(STR(?venue),32)) AS ?venueUrl) ?venueDescription WHERE {
+  {
+    SELECT (COUNT(?work) AS ?works) ?venue WHERE {
+      ?work wdt:P31 wd:Q45182324 ;
+            wdt:P1433 ?venue .
+    }
+    GROUP BY ?venue
+    ORDER BY DESC(?works)
+    LIMIT 200
+  }
+  
+}
+ORDER BY DESC(?works)
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: most reused articles"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_most-reused-articles.sparql> ;
+  scholia:aspect scholiaAspect:Retraction-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Retraction-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/retraction-index_venues_with_many_retractions.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,66 +16,29 @@
 q:131 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pr: <http://www.wikidata.org/prop/reference/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX target: <http://www.wikidata.org/entity/Q124266519>
-
-SELECT DISTINCT ?description ?value ?valueUrl
-WHERE {
-  BIND(target: AS ?series)
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?transcript_ID ?reference ?referenceLabel ?referenceDescription WHERE {
   {
-    BIND(1 AS ?order)
-    BIND("Title" AS ?description)
-    ?series wdt:P1476 ?value .
-  }
-  UNION
-  {
-    ?series wdt:P179 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast/", ?q) AS ?valueUrl)
-    BIND(2 AS ?order)
-    BIND("Podcast" AS ?description)
-  }
-  UNION
-  {
-    SELECT ?description ?order (MAX(?value_) AS ?value) WHERE {
-      BIND(target: AS ?series)
-      ?series wdt:P1113 ?value_ .
-      BIND(3 AS ?order)
-      BIND("Number of episodes" AS ?description)
-    } GROUP BY ?description ?order
-  }
-  UNION
-  {
-    ?series wdt:P155 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q)
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast-season/", ?q) AS ?valueUrl)
-    BIND(6 AS ?order)
-    BIND("Previous season" AS ?description)
-  }
-  UNION
-  {
-    ?series wdt:P156 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q)
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast-season/", ?q) AS ?valueUrl)
-    BIND(7 AS ?order)
-    BIND("Next season" AS ?description)
+    SELECT ?transcript_ID ?reference WHERE {
+      target: wdt:P31 wd:Q7187 ;
+              p:P704 ?transcriptid_statement .
+      ?transcriptid_statement ps:P704 ?transcript_ID ;
+                              prov:wasDerivedFrom/pr:P248 ?reference .
+    }
   }
 }
-ORDER BY ?order
 ''';
-  scholia:aspect scholiaAspect:Podcast-season ;
-  rdfs:comment "Podcast-season aspect: data"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-season_data.sparql> ;
+  scholia:aspect scholiaAspect:Gene ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Gene aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/gene_transcripts.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

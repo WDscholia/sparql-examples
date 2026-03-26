@@ -17,41 +17,22 @@ q:190 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q45340488>
-
-SELECT ?number_of_citations 
-?author ?authorLabel (CONCAT("/author/", SUBSTR(STR(?author), 32)) AS ?authorUrl)
-?cited_work_example ?cited_work_exampleLabel (CONCAT("/work/", SUBSTR(STR(?cited_work_example), 32)) AS ?cited_work_exampleUrl)
-WITH {
-  # Find works about the topic
-  SELECT DISTINCT ?work WHERE {
-	  ?work wdt:P921 / (wdt:P361+ | wdt:P1269+ | (wdt:P31* / wdt:P279*) ) target: .
+SELECT ?count ?printer ?printerLabel ?printerDescription (CONCAT("/printer/", SUBSTR(STR(?printer),32)) AS ?printerUrl) ?example_work ?example_workLabel (CONCAT("/work/", SUBSTR(STR(?example_work),32)) AS ?example_workUrl) WHERE {
+  {
+    SELECT (COUNT(?work) AS ?count) ?printer (SAMPLE(?work) AS ?example_work) WHERE {
+      ?work wdt:P872 ?printer .
+    }
+    GROUP BY ?printer
   }
-} AS %works
-WITH {
-  # Find cited works
-  SELECT (COUNT(?work) AS ?number_of_citations) ?author (SAMPLE(?cited_work) AS ?cited_work_example)
-  WHERE {
-    INCLUDE %works
-    ?cited_work wdt:P50 ?author . 
-    ?work wdt:P2860 ?cited_work .
-  } 
-  GROUP BY ?author
-} AS %result
-WHERE {
-  # Label the results
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
-} 
-ORDER BY DESC(?number_of_citations)
-LIMIT 200
+}
+ORDER BY DESC(?count)
+LIMIT 1000
 ''';
-  scholia:aspect scholiaAspect:Topic ;
-  rdfs:comment "Topic aspect: most cited authors"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topic_most-cited-authors.sparql> ;
+  scholia:aspect scholiaAspect:Printer-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Printer-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/printer-index_printed-works-per-publisher.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

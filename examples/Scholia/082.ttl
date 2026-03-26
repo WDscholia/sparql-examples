@@ -16,48 +16,35 @@
 q:082 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-SELECT ?time ?short_name 
-?event ?eventLabel (CONCAT("/event/", SUBSTR(STR(?event), 32)) AS ?eventUrl)
-?location ?locationLabel (CONCAT("/location/", SUBSTR(STR(?location), 32)) AS ?locationUrl)
-WITH {
-  SELECT DISTINCT ?event WHERE {
-    # This union seems to be faster than a VALUES-based query
-    { ?event wdt:P31 / wdt:P279* wd:Q52260246 . }
-    UNION 
-    { ?event wdt:P31 / wdt:P279* wd:Q46855 . }
+SELECT ?quantity ?part ?partLabel ?partDescription ?type WHERE {
+  {
+    SELECT ?part ?quantity (GROUP_CONCAT(DISTINCT ?type_label; SEPARATOR=", ") AS ?type) WHERE {
+      VALUES ?complex { target: }
+      ?complex p:P527 ?partStatement .
+      ?partStatement ps:P527 ?part .
+      OPTIONAL {
+        ?partStatement pq:P1114 ?quantity
+      }
+      OPTIONAL {
+        ?part wdt:P31 ?type_ .
+        ?type_ rdfs:label ?type_label .
+        FILTER (LANG(?type_label) = 'en')
+      }
+    }
+    GROUP BY ?part ?quantity
   }
-} AS %events
-WITH {
-  SELECT 
-    ?event 
-    (xsd:date(MIN(?times)) AS ?time)
-    (SAMPLE(?locations) AS ?location)
-    (SAMPLE(?short_names) AS ?short_name)
-  WHERE {
-    INCLUDE %events
-    
-    ?event wdt:P580 | wdt:P585 ?times .
-    FILTER (?times > NOW())
-  
-    OPTIONAL { ?event wdt:P276 ?locations }
-    OPTIONAL { ?event wdt:P1813 ?short_names }
-  }
-  GROUP BY ?event
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,de,fr,jp,nl,no,pl,ru,sv,zh". }
 }
-ORDER BY ?time
+ORDER BY ASC(?partLabel)
 ''';
-  scholia:aspect scholiaAspect:Event ;
-  rdfs:comment "Event aspect: future events"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_future-events.sparql> ;
+  scholia:aspect scholiaAspect:Complex ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Complex aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/complex_participants.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,67 +16,38 @@
 q:032 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX hint: <http://www.bigdata.com/queryHints#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''# tool: scholia
+# Statistics on number of recipients for award wrt. gender
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-#defaultView:Graph
-PREFIX target: <http://www.wikidata.org/entity/Q46995757>
-
-SELECT
-  ?child ?childLabel
-  ?rgb 
-  ?parent ?parentLabel
-WITH {
-  SELECT ?child ?rgb ?parent WHERE {
-    { 
-      SELECT ?child ?rgb ?parent  WHERE {
-        SERVICE gas:service {
-          gas:program gas:gasClass "com.bigdata.rdf.graph.analytics.BFS" ;
-                  gas:in target: ;
-                  gas:traversalDirection "Forward" ;
-                  gas:out ?child ;
-                  gas:out1 ?depth ;
-                  gas:out2 ?parent1 ;
-                  gas:linkType wdt:P279 ;
-        }
-        ?child wdt:P279 ?parent .
-        BIND(IF(?child = target:, "FF0000", "FFFFFF") AS ?rgb)
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?males ?females ?award ?awardLabel WHERE {
+  {
+    SELECT (COUNT(?recipient_male) AS ?males) (COUNT(?recipient_female) AS ?females) ?award WHERE {
+      ?award wdt:P31 wd:Q11448906 .
+      {
+        ?recipient_male wdt:P166 ?award .
+        ?recipient_male wdt:P21 wd:Q6581097 .
+      }
+      UNION {
+        ?recipient_female wdt:P166 ?award .
+        ?recipient_female wdt:P21 wd:Q6581072 .
       }
     }
-    UNION
-    {
-      SELECT ?child ?rgb ?parent WHERE {
-        BIND(target: AS ?parent)
-        ?child wdt:P279 ?parent . 
-        BIND("DDDDDD" AS ?rgb)
-      }
-      LIMIT 10
+    GROUP BY ?award
+  }
+  UNION {
+    VALUES (?males ?females ?award ?awardLabel) {
+      (2000 2000 wd:Q10578722 "Fictive Award Label for axis")
     }
   }
-} AS %results
-WHERE {
-  INCLUDE %results   
-  VALUES ?classes {
-    wd:Q15711994 # group of isomeric entities
-    wd:Q17339814 # group or class of chemical substances
-    wd:Q47154513 # structural class of chemical entities
-    wd:Q55640599 # group of chemical entities
-    wd:Q56256173 # class of chemical entities with similar applications or functions
-    wd:Q56256178 # class of chemical entities with similar source or occurrence
-    wd:Q55662456 # group of ortho, meta, para isomers
-    wd:Q59199015 # group of stereoisomers
-    wd:Q72070508 # group or class of chemical entities
-    wd:Q74892521 # imprecise class of chemical entities
-  }
-  ?parent wdt:P31 ?classes. hint:Prior hint:runFirst TRUE.
-  ?child rdfs:label ?childLabel . FILTER(LANG(?childLabel) = "en")
-  ?parent rdfs:label ?parentLabel . FILTER(LANG(?parentLabel) = "en")
-}''';
-  scholia:aspect scholiaAspect:Chemical-class ;
-  scholia:defaultView scholiaView:Graph ;
-  rdfs:comment "Chemical-class aspect: class hierarchy"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-class_class-hierarchy.sparql> ;
+}
+ORDER BY DESC(?males) DESC(?female)
+''';
+  scholia:aspect scholiaAspect:Award-index ;
+  scholia:defaultView scholiaView:ScatterChart ;
+  rdfs:comment "Award-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/award-index_statistics.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

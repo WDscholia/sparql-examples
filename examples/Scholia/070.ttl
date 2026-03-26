@@ -16,37 +16,24 @@
 q:070 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX p: <http://www.wikidata.org/prop/>
 PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:LineChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q47501052>
-
-SELECT 
-  ?year
-  ?acceptance_rate 
-  ?trackLabel
-WHERE {
-  ?event wdt:P179 target: ;
-         wdt:P580 ?datetime ;
-         p:P5822 ?acceptance_rate_statement .
-  ?acceptance_rate_statement ps:P5822 ?acceptance_rate .
-  OPTIONAL { ?acceptance_rate_statement pq:P518 ?track_ . }
-  BIND(COALESCE(?track_, "total") AS ?track)
-  
-  BIND(STR(YEAR(?datetime)) AS ?year)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+SELECT (COUNT(DISTINCT ?citingArticle) AS ?count) ?journal ?journalLabel (CONCAT("/venue/", SUBSTR(STR(?journal),32)) AS ?journalUrl) WHERE {
+  VALUES ?INTENTION { target: }
+  ?citingArticle p:P2860 ?citationStatement ;
+                 wdt:P1433 ?journal .
+  ?citationStatement pq:P3712 ?INTENTION .
 }
-ORDER BY ?year
+GROUP BY ?journal ?journalLabel
+ORDER BY DESC(?count)
 ''';
-  scholia:aspect scholiaAspect:Event-series ;
-  scholia:defaultView scholiaView:LineChart ;
-  rdfs:comment "Event-series aspect: acceptance rate"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event-series_acceptance-rate.sparql> ;
+  scholia:aspect scholiaAspect:Cito ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Cito aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/cito_journals.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

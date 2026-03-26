@@ -17,26 +17,32 @@ q:136 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX dct: <http://purl.org/dc/terms/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q124262264>
-
-SELECT DISTINCT ?season ?seasonLabel
-  (CONCAT("/podcast-season/", SUBSTR(STR(?season), 32)) AS ?seasonUrl)
-  (MAX(?count) AS ?episodeCount)
-WHERE {
-  ?season wdt:P31 wd:Q69154911 ; wdt:P179 target: .
-  OPTIONAL {
-    ?season wdt:P1113 ?count .
+SELECT ?count ?lexeme (?lexeme_label AS ?lexemeLabel) (CONCAT("/lexeme/", SUBSTR(STR(?lexeme),32)) AS ?lexemeUrl) ?language ?languageLabel ?example_work ?example_workLabel ?example_workDescription (CONCAT("/work/", SUBSTR(STR(?example_work),32)) AS ?example_workUrl) WHERE {
+  {
+    SELECT (COUNT(DISTINCT ?work) AS ?count) ?lexeme (SAMPLE(?language_) AS ?language) (SAMPLE(?work) AS ?example_work) WHERE {
+      {
+        ?work wdt:P6254 ?lexeme .
+      }
+      UNION {
+        ?lexeme wdt:P1343 ?work ;
+                dct:language [] .
+      }
+      ?lexeme dct:language ?language_ .
+    }
+    GROUP BY ?lexeme
+    ORDER BY DESC(?count)
+    LIMIT 500
   }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-} GROUP BY ?season ?seasonLabel ?seasonUrl
+  ?lexeme wikibase:lemma ?lexeme_label
+}
+ORDER BY DESC(?count)
 ''';
-  scholia:aspect scholiaAspect:Podcast ;
-  rdfs:comment "Podcast aspect: seasons"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast_seasons.sparql> ;
+  scholia:aspect scholiaAspect:Lexeme-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Lexeme-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/lexeme-index_lexemes.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

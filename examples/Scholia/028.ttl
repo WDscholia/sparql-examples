@@ -16,36 +16,44 @@
 q:028 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX gas: <http://www.bigdata.com/rdf/gas#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX target: <http://www.wikidata.org/entity/Q44585>
-
-SELECT ?publication_date ?work ?workLabel ?recipient ?recipientLabel
-WITH {
-  SELECT
-    (MAX(?publication_datetimes) AS ?publication_datetime)
-    ?work ?recipient
-  WHERE {
-    ?recipient wdt:P166 target: .
-    ?work wdt:P50 ?recipient .
-    OPTIONAL { ?work wdt:P577 ?publication_datetimes . }
+SELECT ?author ?workLabel WHERE {
+  {
+    SELECT ?work ?author WHERE {
+      {}
+      {% for q1 in qs %}
+      {% for q2 in qs %}
+      {% if q1 < q2 %}
+      UNION {
+        SERVICE <https://query.wikidata.org/sparql> {
+          SELECT ?work ?author WHERE {
+            SERVICE gas:service {
+              gas:program gas:gasClass "com.bigdata.rdf.graph.analytics.BFS" ;
+                          gas:in wd:{{ q1 }} ;
+                          gas:target wd:{{ q2 }} ;
+                          gas:traversalDirection "Undirected" ;
+                          gas:out ?work ;
+                          gas:linkType wdt:P50 ;
+                          gas:maxVisited 5000 .
+            }
+            ?work wdt:P50 ?author
+          }
+        }
+      } # UNION END
+      {% endif %}
+      {% endfor %}
+      {% endfor %}
+    }
   }
-  GROUP BY ?work ?recipient
-} AS %result
-WHERE {
-  INCLUDE %result 
-  BIND(xsd:date(?publication_datetime) AS ?publication_date)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,de,es,fr,jp,no,ru,sv,zh" . }  
 }
-ORDER BY DESC(?publication_date)
-LIMIT 500
 ''';
-  scholia:aspect scholiaAspect:Award ;
-  rdfs:comment "Award aspect: recent publications by recipients"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/award_recent-publications-by-recipients.sparql> ;
+  scholia:aspect scholiaAspect:Authors ;
+  scholia:defaultView scholiaView:Graph ;
+  rdfs:comment "Authors aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/authors_co-author.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

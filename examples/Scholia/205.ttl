@@ -16,38 +16,34 @@
 q:205 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-# title: Author awards for a specific venue
-SELECT DISTINCT
-  ?year 
-  ?author ?authorLabel
-  ?award ?awardLabel ?awardDescription
-WHERE {
-  [] wdt:P1433 target: ;
-     wdt:P50 ?author .
-  ?author p:P166 ?award_statement .
-  ?award_statement ps:P166 ?award .
-  OPTIONAL {
-    { ?award_statement pq:P585 ?time }
-    UNION
-    { ?award_statement pq:P580 ?time }
-    BIND(YEAR(?time) AS ?year)
+SELECT ?type ?complex_or_process ?complex_or_processLabel WHERE {
+  {
+    SELECT DISTINCT ?type ?complex_or_process WHERE {
+      VALUES ?part { target: }
+      VALUES ?process { wd:Q2996394 wd:Q4915012 }
+      {
+        ?part ^wdt:P527 ?complex_or_process .
+        ?complex_or_process wdt:P31 wd:Q22325163 ;
+        BIND ("complex" AS ?type)
+      }
+      UNION {
+        ?part ^wdt:P527 ?complex_or_process .
+        ?complex_or_process wdt:P31 ?process ;
+        BIND ("biological process" AS ?type)
+      }
+    }
   }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }  
 }
-ORDER BY DESC(?year)
-LIMIT 500
+ORDER BY ASC(?partLabel)
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Author awards for a specific venue"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_author-awards.sparql> ;
+  scholia:aspect scholiaAspect:Protein ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Protein aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/protein_participates-in.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

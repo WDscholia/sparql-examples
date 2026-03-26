@@ -16,39 +16,59 @@
 q:099 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+# Inspired from LEGOLAS - http://abel.lis.illinois.edu/legolas/
+# Shubhanshu Mishra, Vetle Torvik
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q14860818>
-
-SELECT
-  ?variant ?variantLabel ?variantDescription
-  ?types
-WITH {
-  SELECT ?variant ?type
-  WHERE {
-    ?variant wdt:P3433 target:
+SELECT ?year (COUNT(?work) AS ?number_of_publications) WHERE {
+  {
+    SELECT (STR(?year_) AS ?year) (0 AS ?pages) WHERE {
+      # default values = 0
+      ?year_item wdt:P31 wd:Q577 .
+      ?year_item wdt:P585 ?date .
+      BIND (YEAR(?date) AS ?year_)
+      {
+        SELECT (MIN(?year_) AS ?earliest_year) WHERE {
+          {
+            ?work wdt:P921/wdt:P31*/wdt:P279* target: .
+          }
+          UNION {
+            ?work wdt:P921/wdt:P361+ target: .
+          }
+          UNION {
+            ?work wdt:P921/wdt:P1269+ target: .
+          }
+          ?work wdt:P577 ?publication_date .
+          BIND (YEAR(?publication_date) AS ?year_)
+        }
+      }
+      BIND (YEAR(NOW() 
+    ) AS ?next_year ) FILTER ( ?year_ >= ?earliest_year && ?year_ <= ?next_year )}
   }
-} AS %variants
-WITH {
-  SELECT ?variant (GROUP_CONCAT(?type_label; separator=" // ") AS ?types) WHERE {
-    INCLUDE %variants
-    OPTIONAL {
-      ?variant wdt:P279 ?variantType . 
-      ?variantType rdfs:label ?type_label .  FILTER (lang(?type_label) = 'en')
+  UNION {
+    SELECT ?work (MIN(?years) AS ?year) WHERE {
+      {
+        ?work wdt:P921/wdt:P31*/wdt:P279* target: .
+      }
+      UNION {
+        ?work wdt:P921/wdt:P361+ target: .
+      }
+      UNION {
+        ?work wdt:P921/wdt:P1269+ target: .
+      }
+      ?work wdt:P577 ?dates .
+      BIND (STR(YEAR(?dates)) AS ?years) .
     }
+    GROUP BY ?work
   }
-  GROUP BY ?variant
-} AS %result 
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-}''';
-  scholia:aspect scholiaAspect:Gene ;
-  rdfs:comment "Gene aspect: variants"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/gene_variants.sparql> ;
+}
+GROUP BY ?year
+ORDER BY ?year
+''';
+  scholia:aspect scholiaAspect:Disease ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Disease aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/disease_publications-per-year.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

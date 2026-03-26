@@ -16,30 +16,71 @@
 q:117 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-#defaultView:Table
-PREFIX target: <http://www.wikidata.org/entity/Q104785223>
-
-SELECT DISTINCT ?publication_date ?citing_work ?citing_workLabel ?work ?workLabel
-WHERE {
-  ?researcher ( wdt:P108 | wdt:P463 | wdt:P1416 ) / wdt:P361* target: .
-  ?work wdt:P50 ?researcher .
-  ?citing_work wdt:P2860 ?work .
-  ?citing_work wdt:P577 ?publication_datetime .
-  BIND(xsd:date(?publication_datetime) AS ?publication_date)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
- }
-ORDER BY DESC(?publication_date)
-LIMIT 200
+SELECT (?number_of_publications AS ?works) ?person ?personLabel ?personDescription ?roles ?example_work ?example_workLabel WHERE {
+  {
+    SELECT (COUNT(?work) AS ?number_of_publications) ?roles ?person (SAMPLE(?work) AS ?example_work) WHERE {
+      {
+        SELECT (GROUP_CONCAT(DISTINCT ?role; SEPARATOR=", ") AS ?roles) ?person WHERE {
+          {
+            # speaker added directly in the target item
+            target: wdt:P823 ?person .
+            # BIND(wd:Q9379869 AS ?role)
+            BIND ("speaker" AS ?role)
+          }
+          UNION {
+            # speaker inferred from presentation items related to the event-target
+            ?presentation wdt:P823 ?person ;
+                          wdt:P5072 target:
+            BIND ("speaker" AS ?role)
+          }
+          UNION {
+            # organizer
+            target: wdt:P664 ?person .
+            #BIND(wd:Q2029941 AS ?role)
+            BIND ("organizer" AS ?role)
+          }
+          UNION {
+            # participant
+            ?person wdt:P1344 | ^wdt:P710 target: .
+            BIND ("participant" AS ?role)
+          }
+          UNION {
+            # editor
+            ?person ^wdt:P98/wdt:P4745 target: .
+            BIND ("editor of proceedings" AS ?role)
+          }
+          UNION {
+            # author
+            ?person ^wdt:P50/wdt:P1433/wdt:P4745 target: .
+            BIND ("author" AS ?role)
+          }
+          UNION {
+            # program committee member
+            target: wdt:P5804 ?person .
+            BIND ("program committee member" AS ?role)
+          }
+        }
+        GROUP BY ?person
+      } .
+      ?person wdt:P31 wd:Q5.
+      OPTIONAL {
+        ?work wdt:P50 ?person .
+      }
+    }
+    GROUP BY ?roles ?person
+  }
+}
+ORDER BY DESC(?number_of_publications)
+LIMIT 10000
 ''';
-  scholia:aspect scholiaAspect:Organization ;
-  scholia:defaultView scholiaView:Table ;
-  rdfs:comment "Organization aspect: recent citations"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_recent-citations.sparql> ;
+  scholia:aspect scholiaAspect:Event ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Event aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_people.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

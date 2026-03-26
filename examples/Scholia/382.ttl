@@ -1,0 +1,58 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:382 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX pr: <http://www.wikidata.org/prop/reference/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?item ?itemLabel ?property ?propertyLabel ?value ?valueLabel ?unit ?unitLabel WHERE {
+  {
+    { SELECT ?statement WHERE { ?statement prov:wasDerivedFrom/pr:P248 target: . } }
+    ?item a wikibase:Item ; ?p ?statement .
+    ?property wikibase:claim ?p ; wikibase:statementProperty ?ps .
+    ?statement ?ps ?value .
+    FILTER NOT EXISTS {
+      ?property wikibase:statementValueNormalized ?pn .
+      FILTER (ISLITERAL(?value))
+    }
+  } UNION {
+    { SELECT ?statement WHERE { ?statement prov:wasDerivedFrom/pr:P248 target: . } }
+    ?item a wikibase:Item ; ?p ?statement .
+    ?property wikibase:claim ?p ; wikibase:statementValueNormalized ?pn .
+    ?statement ?pn ?value .
+    FILTER (ISLITERAL(?value))
+  }
+
+  OPTIONAL {
+    { SELECT ?statement WHERE { ?statement prov:wasDerivedFrom/pr:P248 target: . } }
+    ?item a wikibase:Item ; ?p ?statement .
+    ?property wikibase:claim ?p ; wikibase:statementProperty ?ps ; wikibase:statementValue ?psv .
+    ?statement ?psv [ wikibase:quantityUnit ?unit ]
+  }
+
+}
+ORDER BY ?item ?property
+LIMIT 2000
+''';
+  rdfs:comment "Work aspect:  Statements referencing the {{ q }} article"@en ;
+  scholia:aspect scholiaAspect:Work ;
+  scholia:defaultView scholiaView:Table ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/work_statements.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

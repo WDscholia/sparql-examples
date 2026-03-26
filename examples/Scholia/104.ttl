@@ -16,127 +16,44 @@
 q:104 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX target: <http://www.wikidata.org/entity/Q116446479>
-
-SELECT DISTINCT ?description ?value ?valueUrl
-WHERE {
-  BIND(target: AS ?ontology)
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT DISTINCT (SAMPLE(?years) AS ?year) (SAMPLE(?ordinal_) AS ?ordinal) (SAMPLE(?short_names) AS ?short_name) ?event ?eventLabel (CONCAT("/event/", SUBSTR(STR(?event),32)) AS ?eventUrl) ?proceedings ?proceedingsLabel (CONCAT("/venue/", SUBSTR(STR(?proceedings),32)) AS ?proceedingsUrl) WHERE {
   {
-    BIND(1 AS ?order)
-    BIND("Website" AS ?description)
-    ?ontology wdt:P856 ?value .
-    BIND(?value AS ?valueUrl)
-  }
-  UNION
-  {
-    SELECT
-      (2 AS ?order)
-      ("Maintainer(s)" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../authors/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P126 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q)
-      ?iri rdfs:label ?value_string .
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+    ?event wdt:P179 | wdt:P31 target: .
+    OPTIONAL {
+      ?event wdt:P585 | wdt:P580 ?datetime .
+      BIND (YEAR(?datetime) AS ?years)
     }
-    GROUP BY ?dummy
-  }
-  UNION
-  {
-    SELECT
-      (3 AS ?order)
-      ("Contributors" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../authors/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P50 | wdt:P178 | wdt:P767 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-      ?iri rdfs:label ?value_string . 
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+    OPTIONAL {
+      ?event wdt:P1813 ?short_names
     }
-    GROUP BY ?dummy
-  }
-  UNION
-  {
-    SELECT
-      (4 AS ?order)
-      ("Part of" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../topic/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P361 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-      ?iri rdfs:label ?value_string . 
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+    OPTIONAL {
+      ?proceedings wdt:P4745 ?event
     }
-    GROUP BY ?dummy
-  }
-  UNION
-  {
-    SELECT
-      (5 AS ?order)
-      ("License" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../topic/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P275 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q)
-      ?iri rdfs:label ?value_string .
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+    OPTIONAL {
+      ?event p:P179/pq:P1545 ?ordinal_
     }
-    GROUP BY ?dummy
   }
-  UNION
-  {
-    SELECT
-      (6 AS ?order)
-      ("Wikidata property" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P1687 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q)
-      ?iri rdfs:label ?value_string .
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+  UNION {
+    # proceedings even if the event is not there!!!
+    ?proceedings (wdt:P179/wdt:P4745) target: .
+    OPTIONAL {
+      ?proceedings wdt:P577 ?datetime .
+      BIND (YEAR(?datetime) AS ?years)
     }
-    GROUP BY ?dummy
-  }
-  UNION
-  {
-    SELECT
-      (7 AS ?order)
-      ("🛑 Replaced by" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      ?iri wdt:P1365 target: .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q)
-      ?iri rdfs:label ?value_string .
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
-    }
-    GROUP BY ?dummy
   }
 }
-ORDER BY ?order
+GROUP BY ?event ?year ?eventLabel ?proceedings ?proceedingsLabel
+ORDER BY DESC(?year)
 ''';
-  scholia:aspect scholiaAspect:Ontology ;
-  rdfs:comment "Ontology aspect: data"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/ontology_data.sparql> ;
+  scholia:aspect scholiaAspect:Event-series ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Event-series aspect:  List of event and proceedings for a specific event series"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event-series_events.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

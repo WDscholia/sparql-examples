@@ -1,0 +1,45 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:270 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ((?distinct_topics + ?topics / (?topics + 100)) AS ?score) ?author ?authorLabel (CONCAT("/author/", SUBSTR(STR(?author),32)) AS ?authorUrl) ?example_work ?example_workLabel (CONCAT("/work/", SUBSTR(STR(?example_work),32)) AS ?example_workUrl) WHERE {
+  {
+    SELECT (COUNT(DISTINCT ?topic) AS ?distinct_topics) (COUNT(?topic) AS ?topics) ?author (SAMPLE(?work) AS ?example_work) WHERE {
+      #    VALUES ?topic { {% for q in qs %} wd:{{ q }} {% endfor %} }
+      # A broad query including "(wdt:P361+ | wdt:P1269+ | (wdt:P31* / wdt:P279*) )" seems to take
+      # long time and time out.
+      ?work wdt:P921 ?topic ;
+            wdt:P50 ?author .
+    }
+    GROUP BY ?author
+    ORDER BY DESC(?distinct_topics) DESC(?topics)
+    LIMIT 200
+  }
+
+}
+ORDER BY DESC(?score)
+''';
+  scholia:aspect scholiaAspect:Topics ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Topics aspect:  Authors for specific topics"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topics_authors.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

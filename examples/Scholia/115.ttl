@@ -17,49 +17,42 @@ q:115 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:BubbleChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q104785223>
-
-# Bubble chart of most cited works of first author associated
-# with an organization
-SELECT
-  ?count ?work ?workLabel
-WITH {
-  # Find researchers associated with the organization and count
-  # the number of citations.
-  SELECT
-    (COUNT(DISTINCT ?citing_work) AS ?count)
-    ?work
-  WHERE {
-    ?researcher wdt:P108 | wdt:P463 | (wdt:P1416 / wdt:P361*) target: .
-    ?work p:P50 ?researcher_statement .
-    ?researcher_statement ps:P50 ?researcher .
-    ?researcher_statement pq:P1545 "1" .
-    ?citing_work wdt:P2860 ?work .
-  }
-  GROUP BY ?work                   
-  ORDER BY DESC(?count)
-  LIMIT 20
-} AS %works
-WHERE {
-  # Label the works
-  INCLUDE %works
-  SERVICE wikibase:label {
-    bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" .
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?time ?short_name ?event ?eventLabel (CONCAT("/event/", SUBSTR(STR(?event),32)) AS ?eventUrl) ?location ?locationLabel (CONCAT("/location/", SUBSTR(STR(?location),32)) AS ?locationUrl) WHERE {
+  {
+    SELECT ?event (xsd:date(MIN(?times)) AS ?time) (SAMPLE(?locations) AS ?location) (SAMPLE(?short_names) AS ?short_name) WHERE {
+      {
+        SELECT DISTINCT ?event WHERE {
+          # This union seems to be faster than a VALUES-based query
+          {
+            ?event wdt:P31/wdt:P279* wd:Q52260246 .
+          }
+          UNION {
+            ?event wdt:P31/wdt:P279* wd:Q46855 .
+          }
+        }
+      }
+      ?event wdt:P580 | wdt:P585 ?times .
+      FILTER (?times > NOW
+      ())
+      OPTIONAL {
+        ?event wdt:P276 ?locations
+      }
+      OPTIONAL {
+        ?event wdt:P1813 ?short_names
+      }
+    }
+    GROUP BY ?event
   }
 }
-ORDER BY DESC(?count)
+ORDER BY ?time
 ''';
-  scholia:aspect scholiaAspect:Organization ;
-  scholia:defaultView scholiaView:BubbleChart ;
-  rdfs:comment "Organization aspect: most cited papers"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_most-cited-papers.sparql> ;
+  scholia:aspect scholiaAspect:Event ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Event aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_future-events.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,29 +16,24 @@
 q:140 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:Map
-
-PREFIX target: <http://www.wikidata.org/entity/Q27990087>
-
-SELECT ?partner ?partnerLabel ?location
-WITH {
-  SELECT DISTINCT ?partner ?location WHERE {
-    target: (^wdt:P1344 | wdt:P710)* / (wdt:P527 | wdt:P710 | wdt:P1416) ?partner .
-    ?partner wdt:P159* / wdt:P625 ?location .
+SELECT ?count ?type ?typeLabel ?typeDescription WHERE {
+  {
+    SELECT (COUNT(*) AS ?count) ?type WHERE {
+      [] wdt:P275 target: ;
+         wdt:P31 ?type .
+    }
+    GROUP BY ?type
   }
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
-}''';
-  scholia:aspect scholiaAspect:Project ;
-  scholia:defaultView scholiaView:Map ;
-  rdfs:comment "Project aspect: partners"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/project_partners.sparql> ;
+}
+ORDER BY DESC(?count)
+''';
+  scholia:aspect scholiaAspect:License ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "License aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/license_types-of-work.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

@@ -16,106 +16,70 @@
 q:052 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX target: <http://www.wikidata.org/entity/Q64651365>
+  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
-SELECT ?description ?value ?valueUrl
+SELECT
+  (xsd:integer(?count_) AS ?count)
+  (CONCAT("Total chemicals with ", ?description_) AS ?description)
 WHERE {
-  BIND(target: AS ?trial)
-  {
-    BIND(1 AS ?order)
-    BIND("Title" AS ?description)
-    ?trial wdt:P1476 ?value .
+  SERVICE <https://query.wikidata.org/sparql> {
+    BIND("haswbstatement:P31=Q113145171|P31=Q59199015" AS ?constraint)
+    VALUES (?description_ ?property_query_term) {
+      ("or without stereochemistry" "")
+      ("fully defined stereochemistry" "P31=Q113145171")
+      ("undefined stereochemistry" "P31=Q59199015")
+      ("CAS registry number" "P231")
+      ("canonical SMILES" "P233")
+      ("InChI" "P234")
+      ("InChIKey" "P235")
+      ("chemical formula" "P274")
+      # ("ChEMBL ID" "P592") # limit IDs
+      # ("ChemSpider ID" "P661") # limit IDs
+      ("PubChem ID" "P662")
+      # ("KEGG ID" "P665") # limit IDs
+      ("ChEBI ID" "P683")
+      ("found in taxon" "P703")
+      ("isomeric SMILES" "P2017")
+      # ("ZINC ID" "P2084") # limit IDs
+      ("crystal structure" "haswbstatement:P3636|P11375")
+      ("safety classification and labelling" "P4952")
+      ("mass spectrum" "haswbstatement:P4964|P6689|P12472")
+      # ("SMARTS notation" "P8533") # not for now
+      ("NMR spectrum" "P9405")
+      # hacky way to get quantity properties.
+      ("pKa" "linksto:Property:P1117")
+      ("mass" "linksto:Property:P2067")
+      ("solubility" "linksto:Property:P2177")
+      ("melting point" "linksto:Property:P2101")
+      ("boiling point" "linksto:Property:P2102")
+      ("electric dipole moment" "linksto:Property:P2201")
+      ("ionization energy" "linksto:Property:P2260")
+      # ("minimum explosive concentration" "linksto:Property:P2204") # safety
+      # ("time-weighted average exposure limit" "linksto:Property:P2404") # safety
+      # ("ceiling exposure limit" "linksto:Property:P2405") # safety
+      # ("maximum peak exposure limit" "linksto:Property:P2406") # safety
+      # ("short-term exposure limit" "linksto:Property:P2407") # safety
+      # ("solubility product constant" "linksto:Property:P11813") # less than 5 statements
+    }
+    BIND(CONCAT(?property_query_term, " ", ?constraint) AS ?search_query)
+    SERVICE wikibase:mwapi {
+      bd:serviceParam wikibase:endpoint "www.wikidata.org" ;
+                      wikibase:api "Search" ;
+                      wikibase:limit "once" ;
+                      mwapi:srsearch ?search_query;
+                      mwapi:srlimit "1".
+      ?count_ wikibase:apiOutput "//searchinfo[1]/@totalhits".
+    }
   }
-  UNION
-  {
-    BIND(10 AS ?order)
-    BIND("Number of participants" AS ?description)
-    ?trial wdt:P1132 ?value .
-  }
-  UNION
-  {
-    BIND(11 AS ?order)
-    BIND("Clinical trial phase" AS ?description)
-    ?trial wdt:P6099 ?iri .
-
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string . 
-    FILTER (LANG(?value_string) = 'en')
-    BIND(COALESCE(?value_string, ?q) AS ?value)
-    BIND(CONCAT("../topic/", ?q) AS ?valueUrl)
-  }
-  UNION
-  {
-    BIND(12 AS ?order)
-    BIND("Medical condition" AS ?description)
-    ?trial wdt:P1050 ?iri .
-
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string . 
-    FILTER (LANG(?value_string) = 'en')
-    BIND(COALESCE(?value_string, ?q) AS ?value)
-    BIND(CONCAT("../disease/", ?q) AS ?valueUrl)
-  }
-  UNION
-  {
-    BIND(13 AS ?order)
-    BIND("Research intervention" AS ?description)
-    ?trial wdt:P4844 ?iri .
-
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string . 
-    FILTER (LANG(?value_string) = 'en')
-    BIND(COALESCE(?value_string, ?q) AS ?value)
-    BIND(CONCAT("../topic/", ?q) AS ?valueUrl)
-  }
-  UNION
-  {
-    BIND(20 AS ?order)
-    BIND("Sponsor" AS ?description)
-    ?trial wdt:P859 ?iri .
-
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string . 
-    FILTER (LANG(?value_string) = 'en')
-    BIND(COALESCE(?value_string, ?q) AS ?value)
-    BIND(CONCAT("../sponsor/", ?q) AS ?valueUrl)
-  }
-
-  UNION
-  {
-    BIND(100 AS ?order)
-    BIND("ClinicalTrials.gov" AS ?description)
-    ?trial wdt:P3098 ?value_ .
-    BIND(CONCAT(?value_, " ↗") AS ?value)
-    BIND(CONCAT("https://clinicaltrials.gov/show/", ?value_) AS ?valueUrl)
-  }
-
-  UNION
-  {
-    BIND(101 AS ?order)
-    BIND("ClinWiki" AS ?description)
-    ?trial wdt:P3098 ?value_ .
-    BIND(CONCAT(?value_, " ↗") AS ?value)
-    BIND(CONCAT("https://www.clinwiki.org/study/", ?value_) AS ?valueUrl)
-  }
-
-  UNION
-  {
-    BIND(103 AS ?order)
-    BIND("OpenTrials" AS ?description)
-    ?trial wdt:P6220 ?value_ .
-    BIND(CONCAT(?value_, " ↗") AS ?value)
-    BIND(CONCAT("https://explorer.opentrials.net/trials/", ?value_) AS ?valueUrl)
-  }
-
-} 
-ORDER BY ?order''';
-  scholia:aspect scholiaAspect:Clinical-trial ;
-  rdfs:comment "Clinical-trial aspect: data"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/clinical-trial_data.sparql> ;
+}
+ORDER BY DESC(?count)
+''';
+  scholia:aspect scholiaAspect:Chemical-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Chemical-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-index_statistics.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

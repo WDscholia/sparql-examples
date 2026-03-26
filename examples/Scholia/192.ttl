@@ -16,69 +16,30 @@
 q:192 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX psv: <http://www.wikidata.org/prop/statement/value/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-#defaultView:BarChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q45340488>
-
-SELECT
-  (STR(?year_) AS ?year)
-  (COUNT(?work) AS ?number_of_publications)
-
-  # Work type used to color the bar chart
-  ?type
-WITH {
-  # Find works with the topic. Also report the year
-  SELECT
-    ?work (MIN(?years) AS ?year_) (1 AS ?dummy) (SAMPLE(?article_type_) AS ?article_type)
-  WHERE {
-    ?work wdt:P921 / (wdt:P31*/wdt:P279* | wdt:P361+ | wdt:P1269+) target: .
-    ?work wdt:P577 ?dates .
-    BIND(YEAR(?dates) AS ?years) .
-
-    ?work wdt:P31 ?article_type_ .
-  }
-  GROUP BY ?work 
-} AS %works
-WITH {
-  SELECT ?year_ WHERE {
-    # default values = 0
-    ?year_item wdt:P31 wd:Q577 . 
-    ?year_item wdt:P585 ?date .
-    BIND(YEAR(?date) AS ?year_)
-  }
-} AS %default_counts
-WITH {
-  # Find earliest publication year
-  SELECT (MIN(?year_) AS ?earliest_year) WHERE {
-    INCLUDE %works
-  }
-  GROUP BY ?dummy
-} AS %earliest  
-WHERE {
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?cites_per_million ?citations ?budget ?currency ?currencyLabel ?short_name ?project ?projectLabel WHERE {
   {
-    INCLUDE %works
-    ?article_type rdfs:label ?type . FILTER (LANG(?type) = "en")
+    SELECT (COUNT(?citing_work) / ?budget * 1000000 AS ?cites_per_million) (COUNT(?citing_work) AS ?citations) ?budget ?currency ?project WHERE {
+      ?project p:P2769/psv:P2769 ?budget_value .
+      ?budget_value wikibase:quantityAmount ?budget .
+      ?budget_value wikibase:quantityUnit ?currency .
+      ?work wdt:P859 ?project .
+      ?citing_work wdt:P2860 ?work .
+    }
+    GROUP BY ?project ?budget ?currency
   }
-  UNION
-  {
-    INCLUDE %default_counts
-    BIND("_" AS ?type)
+  OPTIONAL {
+    ?project wdt:P1813 ?short_name
   }
-  INCLUDE %earliest
-  BIND(YEAR(NOW()) AS ?this_year)
-  FILTER (?year_ >= ?earliest_year && ?year_ <= ?this_year && ?year_ >= YEAR("1900-01-01"^^xsd:dateTime))
-}
-GROUP BY ?year_ ?type
-ORDER BY ?year
+} ORDER BY DESC(?cites_per_million)
 ''';
-  scholia:aspect scholiaAspect:Topic ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Topic aspect: publications per year"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topic_publications-per-year.sparql> ;
+  scholia:aspect scholiaAspect:Project ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Project aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/project_citations-per-budget.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

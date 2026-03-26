@@ -16,36 +16,24 @@
 q:159 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q73820>
-
-# Count the number of citations for each journal published by a specified publisher
-SELECT
-  ?number_of_citations
-  ?work ?workLabel ?journal ?journalLabel 
-WITH {
-  SELECT ?work ?journal (COUNT(?citing_work) AS ?number_of_citations) WHERE {
-    ?journal wdt:P123 target: .
-    ?work wdt:P1433 ?journal .
-    ?citing_work wdt:P2860 ?work
-  }
-  GROUP BY ?work ?journal
-  ORDER BY DESC(?number_of_citations)
-  LIMIT 500  
-} AS %result
-WHERE {
-  INCLUDE %result
-  # Label the result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT DISTINCT ?publication_date ?citing_work ?citing_workLabel ?work ?workLabel WHERE {
+  ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+  ?work wdt:P50 ?researcher .
+  ?citing_work wdt:P2860 ?work .
+  ?citing_work wdt:P577 ?publication_datetime .
+  BIND (xsd:date(?publication_datetime) AS ?publication_date)
 }
-ORDER BY DESC(?number_of_citations)
+ORDER BY DESC(?publication_date)
+LIMIT 200
 ''';
-  scholia:aspect scholiaAspect:Publisher ;
-  rdfs:comment "Publisher aspect: most cited"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_most-cited.sparql> ;
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView:Table ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_recent-citations.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

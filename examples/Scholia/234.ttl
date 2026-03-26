@@ -16,71 +16,37 @@
 q:234 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''#description: Show software library, programming language and developer dependencies
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-#defaultView:BarChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q60687720>
-
-SELECT
-  (STR(?year_) AS ?year)
-  (COUNT(?work) AS ?number_of_publications)
-
-  # Work type used to color the bar chart
-  ?type
-WITH {
-  # Find works with the topic. Also report the year
-  SELECT
-    ?work (MIN(?years) AS ?year_) (1 AS ?dummy) (SAMPLE(?article_type_) AS ?article_type)
-  WHERE {
-    { ?work wdt:P6104 target: .}
-      union 
-    { ?work wdt:P5008 target: .}
-    ?work wdt:P577 ?dates .
-    BIND(YEAR(?dates) AS ?years) .
-
-    ?work wdt:P31 ?article_type_ .
-  }
-  GROUP BY ?work 
-} AS %works
-WITH {
-  SELECT ?year_ WHERE {
-    # default values = 0
-    ?year_item wdt:P31 wd:Q577 . 
-    ?year_item wdt:P585 ?date .
-    BIND(YEAR(?date) AS ?year_)
-  }
-} AS %default_counts
-WITH {
-  # Find earliest publication year
-  SELECT (MIN(?year_) AS ?earliest_year) WHERE {
-    INCLUDE %works
-  }
-  GROUP BY ?dummy
-} AS %earliest  
-WHERE {
+SELECT ?resource1 ?resource1Label ?resource2 ?resource2Label ?image2 {
   {
-    INCLUDE %works
-    ?article_type rdfs:label ?type . FILTER (LANG(?type) = "en")
+    SELECT ?resource1 (SAMPLE(?image1_) AS ?image1) ?rgb ?resource2 (SAMPLE(?image2_) AS ?image2) {
+      {
+        # root node with coloring
+        BIND (target: AS ?resource1)
+        BIND ("3080BB" AS ?rgb)
+      }
+      UNION {
+        # dependencies, programming language, developer
+        target: (wdt:P1547 | wdt:P277 | wdt:P178 | wdt:P2283 | wdt:P275)+ ?resource1 .
+        OPTIONAL {
+          ?resource1 wdt:P18 ?image1_
+        }
+      }
+      target: (wdt:P1547 | wdt:P277 | wdt:P178 | wdt:P2283 | wdt:P275)+ ?resource2 .
+      OPTIONAL {
+        ?resource2 wdt:P18 ?image2_
+      }
+      ?resource1 (wdt:P1547 | wdt:P277 | wdt:P178 | wdt:P2283 | wdt:P275) ?resource2 .
+    }
+    GROUP BY ?resource1 ?resource2 ?rgb
   }
-  UNION
-  {
-    INCLUDE %default_counts
-    BIND("_" AS ?type)
-  }
-  INCLUDE %earliest
-  BIND(YEAR(NOW()) AS ?this_year)
-  FILTER (?year_ >= ?earliest_year && ?year_ <= ?this_year && ?year_ >= YEAR("1900-01-01"^^xsd:dateTime))
 }
-GROUP BY ?year_ ?type
-ORDER BY ?year
 ''';
-  scholia:aspect scholiaAspect:Wikiproject ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Wikiproject aspect: publications per year"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/wikiproject_publications-per-year.sparql> ;
+  scholia:aspect scholiaAspect:Software ;
+  scholia:defaultView scholiaView:Graph ;
+  rdfs:comment "Software aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_software-dependencies.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

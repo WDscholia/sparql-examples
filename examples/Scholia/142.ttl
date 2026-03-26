@@ -17,59 +17,44 @@ q:142 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX pr: <http://www.wikidata.org/prop/reference/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX psv: <http://www.wikidata.org/prop/statement/value/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:BarChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q27990087>
-
-select ?year (count(?work) as ?number_of_publications) where {
+PREFIX geof: <http://www.opengis.net/def/function/geosparql/>
+SELECT (ROUND(1000 * ?distance_) / 1000 AS ?distance) ?work ?workLabel (CONCAT("/work/", SUBSTR(STR(?work),32)) AS ?workUrl)
+  ?location ?locationLabel (CONCAT("/topic/", SUBSTR(STR(?location),32)) AS ?locationUrl)
+WHERE {
   {
-    select (str(?year_) as ?year) (0 as ?pages) where {
-      # default values = 0
-      ?year_item wdt:P31 wd:Q577 . 
-      ?year_item wdt:P585 ?date .
-      bind(year(?date) as ?year_)
-      {
-        select (min(?year_) as ?earliest_year) where {
-          { ?work wdt:P921/wdt:P31*/wdt:P279* target: . }
-          union { ?work wdt:P921/wdt:P527+ target: . }
-          union { ?work wdt:P921/wdt:P1269+ target: . }
-          union { ?work wdt:P859/wdt:P1344* target: . }
-          union { target: ?propp ?statement .
-                  ?statement a wikibase:BestRank ;
-                             prov:wasDerivedFrom/pr:P248 ?work . }
-          ?work wdt:P577 ?publication_date . 
-          bind(year(?publication_date) as ?year_)
-        }
+    SELECT DISTINCT ?work ?workLabel ?location ?locationLabel (MIN(?distances) AS ?distance_) WHERE {
+      ?work wdt:P921 ?location .
+      ?location p:P625 ?other_geo_statement .
+      # Some locations have unknown geocoordinates indicated with novalue
+      # psv will remove them. 
+      ?other_geo_statement ps:P625 ?other_geo .
+      ?other_geo_statement psv:P625 [] .
+      # Remove articles from encyclopedia and dictionaries
+      # Filter is more expensive when applied here. 
+      MINUS {
+        ?work wdt:P31 wd:Q17329259
       }
-      bind(year(now()) as ?next_year)
-      filter (?year_ >= ?earliest_year && ?year_ <= ?next_year)
+      MINUS {
+        ?work wdt:P31 wd:Q4423781
+      }
+      wd:{{ q }} wdt:P159*/wdt:P625 ?geo .
+      BIND (geof:distance(?other_geo,?geo) AS ?distances)
+      FILTER ( BOUND(?distances) )
     }
-  }
-  union {
-    select ?work (min(?years) as ?year) where {
-      { ?work wdt:P921/wdt:P31*/wdt:P279* target: . }
-      union { ?work wdt:P921/wdt:P527+ target: . }
-      union { ?work wdt:P921/wdt:P1269+ target: . }
-      union { ?work wdt:P859/wdt:P1344* target: . }
-      union { target: ?propp ?statement .
-              ?statement a wikibase:BestRank ;
-                         prov:wasDerivedFrom/pr:P248 ?work . }
-      ?work wdt:P577 ?dates .
-      bind(str(year(?dates)) as ?years) .
-    }
-    group by ?work 
+    GROUP BY ?work ?workLabel ?location ?locationLabel
+    ORDER BY ?distance_
+    LIMIT 500
   }
 }
-group by ?year 
-order by ?year''';
-  scholia:aspect scholiaAspect:Project ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Project aspect: publications per year"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/project_publications-per-year.sparql> ;
+ORDER BY ?distance
+''';
+  scholia:aspect scholiaAspect:Location ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Location aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/location_nearby-locations-as-topics-in-works.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

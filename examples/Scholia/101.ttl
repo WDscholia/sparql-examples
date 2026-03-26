@@ -18,32 +18,32 @@ q:101 a sh:SPARQLExecutable,
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q20007257>
-
-SELECT
-  ?count
-  ?type ?typeLabel ?typeDescription
-WITH {
-  SELECT
-    (COUNT(*) AS ?count)
-    ?type
- 
-  WHERE {
-    [] wdt:P275 target: ; 
-       wdt:P31 ?type .
+SELECT (ROUND(10000 * ?mean_acceptance_rate) / 100 AS ?mean_acceptance_percentage) ?track ?trackLabel ?event_series ?event_seriesLabel (CONCAT("/event-series/", SUBSTR(STR(?event_series),32)) AS ?event_seriesUrl) WHERE {
+  {
+    SELECT (SUM(?acceptance_rate) / COUNT(?acceptance_rate) AS ?mean_acceptance_rate) ?event_series ?track WHERE {
+      ?event_series wdt:P31/wdt:P279* wd:Q125391566 .
+      ?event wdt:P179 ?event_series ;
+             p:P5822 ?acceptance_rate_statement .
+      ?acceptance_rate_statement ps:P5822 ?acceptance_rate .
+      OPTIONAL {
+        ?acceptance_rate_statement pq:P518 ?track_ .
+      }
+      BIND (COALESCE(?track_, "-") AS ?track)
+      BIND (STR(YEAR(?datetime)) AS ?year)
+    }
+    GROUP BY ?event_series ?track
   }
-  GROUP BY ?type
-} AS %types
-WHERE {
-  INCLUDE %types
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
-ORDER BY DESC(?count)''';
-  scholia:aspect scholiaAspect:License ;
-  rdfs:comment "License aspect: types of work"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/license_types-of-work.sparql> ;
+ORDER BY ?mean_acceptance_rate
+''';
+  scholia:aspect scholiaAspect:Event-series-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Event-series-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event-series-index_acceptance-rate.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

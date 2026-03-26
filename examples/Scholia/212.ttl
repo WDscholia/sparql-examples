@@ -16,45 +16,29 @@
 q:212 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+# Count the number of citations for each journal published by a specified publisher
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# title: Venues citing articles from this specific journal
-
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-#defaultView:Table
-SELECT
-  ?count
-  ?short_name
-  ?citing_journal ?citing_journalLabel 
-WITH {
-  SELECT
-    (COUNT(?citing_work) AS ?count)
-    ?citing_journal
-    (SAMPLE(?short_name_) AS ?short_name)
-  WHERE {
-    ?work wdt:P1433 target: .
-    ?citing_work wdt:P2860 ?work .
-    ?citing_work wdt:P1433 ?citing_journal .
-    OPTIONAL { ?citing_journal wdt:P1813 ?short_name_ . }
+SELECT ?number_of_citations ?work ?workLabel ?journal ?journalLabel WHERE {
+  {
+    SELECT ?work ?journal (COUNT(?citing_work) AS ?number_of_citations) WHERE {
+      ?journal wdt:P123 target: .
+      ?work wdt:P1433 ?journal .
+      ?citing_work wdt:P2860 ?work
+    }
+    GROUP BY ?work ?journal
+    ORDER BY DESC(?number_of_citations)
+    LIMIT 500
   }
-  GROUP BY ?citing_journal
-  ORDER BY DESC(?count)
-  LIMIT 1000
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label {
-    bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
+  # Label the result
 }
-ORDER BY DESC(?count)
+ORDER BY DESC(?number_of_citations)
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Venues citing articles from this specific journal"@en ;
-  scholia:defaultView scholiaView:Table ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_citing-venues.sparql> ;
+  scholia:aspect scholiaAspect:Publisher ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Publisher aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_most-cited.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

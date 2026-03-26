@@ -16,26 +16,82 @@
 q:231 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX psv: <http://www.wikidata.org/prop/statement/value/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-SELECT ?type ?typeLabel ?count WITH {
-    SELECT DISTINCT ?type (COUNT(?item) AS ?count) WHERE {
-    ?item wdt:P5008 wd:Q60687720;
-            (wdt:P31|wdt:P279) ?type.
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT DISTINCT ?description ?value ?valueUrl WHERE {
+  BIND (target: AS ?software)
+  {
+    BIND (1 AS ?order)
+    BIND ("Title" AS ?description)
+    ?software wdt:P1476 ?value .
+  }
+  UNION {
+    SELECT (2 AS ?order) ("Developers" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../authors/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P178 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
     }
-    GROUP BY ?type ?count
-    ORDER BY DESC (?count)
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en,da,de,es,fr,it,sv,uk,zh". }
+    GROUP BY ?dummy
+  }
+  UNION {
+    BIND (2 AS ?order)
+    BIND ("Programming language" AS ?description)
+    ?software wdt:P277 ?iri .
+    BIND (SUBSTR(STR(?iri),32) AS ?q)
+    ?iri rdfs:label ?value_string .
+    FILTER (LANG(?value_string) = 'en')
+    BIND (STR(?value_string) AS ?value)
+    BIND (CONCAT("../topic/", ?q) AS ?valueUrl)
+  }
+  UNION {
+    BIND (3 AS ?order)
+    BIND ("License" AS ?description)
+    ?software wdt:P275 ?iri .
+    BIND (SUBSTR(STR(?iri),32) AS ?q)
+    ?iri rdfs:label ?value_string .
+    FILTER (LANG(?value_string) = 'en')
+    BIND (STR(?value_string) AS ?value)
+    BIND (CONCAT("../license/", ?q) AS ?valueUrl)
+  }
+  UNION {
+    BIND (4 AS ?order)
+    BIND ("Publication date" AS ?description)
+    ?software p:P577/psv:P577 ?publication_date_value .
+    ?publication_date_value wikibase:timePrecision ?time_precision ;
+                            wikibase:timeValue ?publication_date .
+    BIND (IF(?time_precision = 9,YEAR(?publication_date),xsd:date(?publication_date)) AS ?value)
+  }
+  UNION {
+    SELECT (5 AS ?order) ("Uses" AS ?description) (GROUP_CONCAT(?value_; SEPARATOR=", ") AS ?value) (CONCAT("../topics/", GROUP_CONCAT(?q; SEPARATOR=",")) AS ?valueUrl) {
+      BIND (1 AS ?dummy)
+      target: wdt:P366 ?iri .
+      BIND (SUBSTR(STR(?iri),32) AS ?q)
+      ?iri rdfs:label ?value_string .
+      FILTER (LANG(?value_string) = 'en')
+      BIND (COALESCE(?value_string, ?q) AS ?value_)
+    }
+    GROUP BY ?dummy
+  }
+  UNION {
+    BIND (11 AS ?order)
+    BIND ("Homepage" AS ?description)
+    ?software wdt:P856 ?valueUrl .
+    BIND (STR(?valueUrl) AS ?value)
+  }
 }
-ORDER BY DESC (?count)''';
-  scholia:aspect scholiaAspect:Wikiproject ;
-  rdfs:comment "Wikiproject aspect: focus"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/wikiproject_focus.sparql> ;
+ORDER BY ?order
+''';
+  scholia:aspect scholiaAspect:Software ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Software aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_data.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

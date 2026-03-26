@@ -1,0 +1,54 @@
+@prefix q: <https://bigcat-um.github.io/sparql-examples/Scholia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix scholia: <http://scholia.toolforge.org/ns/> .
+@prefix scholiaAspect: <http://scholia.toolforge.org/ns/aspect/> .
+@prefix scholiaView: <http://scholia.toolforge.org/ns/view/> .
+@prefix wd: <http://wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix spex: <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix wikibase: <http://wikiba.se/ontology#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+
+q:376 a sh:SPARQLExecutable,
+  sh:SPARQLSelectExecutable;
+  sh:prefixes _:sparql_examples_prefixes ;
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?citations ?publication_date ?cited_work ?cited_workLabel (GROUP_CONCAT(DISTINCT ?intentionLabel; SEPARATOR=", ") AS ?intentions) WHERE {
+  {
+    SELECT (MIN(?date) AS ?publication_date) (COUNT(DISTINCT ?citing_cited_work) AS ?citations) ?cited_work WHERE {
+      target: wdt:P2860 ?cited_work .
+      OPTIONAL {
+        ?cited_work wdt:P577 ?datetime .
+        BIND (xsd:date(?datetime) AS ?date)
+      }
+      OPTIONAL {
+        ?citing_cited_work wdt:P2860 ?cited_work
+      }
+    }
+    GROUP BY ?cited_work
+  }
+  OPTIONAL {
+    target: p:P2860 ?citationStatement .
+    ?citationStatement pq:P3712 ?intention ;
+                       ps:P2860 ?cited_work .
+  }
+}
+GROUP BY ?citations ?publication_date ?cited_work ?cited_workLabel
+ORDER BY DESC(?citations) DESC(?date)
+''';
+  rdfs:comment "Work aspect:  List of works that is cited by the specified work"@en ;
+  scholia:aspect scholiaAspect:Work ;
+  scholia:defaultView scholiaView:Table ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/work_cited-works.sparql> ;
+  dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

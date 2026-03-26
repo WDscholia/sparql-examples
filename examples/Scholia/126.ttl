@@ -16,93 +16,40 @@
 q:126 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX target: <http://www.wikidata.org/entity/Q124268563>
-
-SELECT DISTINCT ?description ?value ?valueUrl
-WHERE {
-  BIND(target: AS ?podcast)
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?date ?deadline ?deadlineLabel ?short_name ?event ?eventLabel (CONCAT("/event/", SUBSTR(STR(?event),32)) AS ?eventUrl) ?location ?locationLabel (CONCAT("/location/", SUBSTR(STR(?location),32)) AS ?locationUrl) {
   {
-    BIND(1 AS ?order)
-    BIND("Title" AS ?description)
-    ?podcast wdt:P1476 ?value .
-  }
-  UNION
-  {
-    SELECT
-      (2 AS ?order)
-      ("Presenters" AS ?description)
-      (GROUP_CONCAT(?value_; separator=", ") AS ?value)
-      (CONCAT("../authors/", GROUP_CONCAT(?q; separator=",")) AS ?valueUrl)
-    {
-      BIND(1 AS ?dummy)
-      target: wdt:P371 ?iri .
-      BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-      ?iri rdfs:label ?value_string . 
-      FILTER (LANG(?value_string) = 'en')
-      BIND(COALESCE(?value_string, ?q) AS ?value_)
+    SELECT ?datetime ?deadline ?event (SAMPLE(?location_) AS ?location) (SAMPLE(?short_name_) AS ?short_name) WHERE {
+      ?event p:P793 ?key_event_statement .
+      ?key_event_statement ps:P793 ?deadline ;
+                           pq:P585 ?datetime .
+      ?deadline wdt:P279* wd:Q2404808 .
+      # Subtract a day from now to get events on the now date
+      # FILTER (NOW() - "P1DT0H0M0.000S"^^xsd:duration < ?datetime)
+      OPTIONAL {
+        ?event wdt:P276 ?location_
+      }
+      OPTIONAL {
+        ?event wdt:P1813 ?short_name_
+      }
     }
-    GROUP BY ?dummy
+    GROUP BY ?datetime ?deadline ?event
   }
-  UNION
-  {
-    ?podcast wdt:P179 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast/", ?q) AS ?valueUrl)
-    BIND(3 AS ?order)
-    BIND("Podcast" AS ?description)
-  }
-  UNION
-  {
-    ?podcast wdt:P577 ?publication_datetime .
-    BIND(xsd:date(?publication_datetime) AS ?value)
-    BIND(4 AS ?order)
-    BIND("Publication date" AS ?description)
-  }
-  UNION
-  {
-    ?podcast wdt:P4908 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast-season/", ?q) AS ?valueUrl)
-    BIND(5 AS ?order)
-    BIND("Season" AS ?description)
-  }
-  UNION
-  {
-    ?podcast wdt:P155 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast-episode/", ?q) AS ?valueUrl)
-    BIND(6 AS ?order)
-    BIND("Previous episode" AS ?description)
-  }
-  UNION
-  {
-    ?podcast wdt:P156 ?iri .
-    BIND(SUBSTR(STR(?iri), 32) AS ?q) 
-    ?iri rdfs:label ?value_string .
-    FILTER (LANG(?value_string) = 'en')
-    BIND(STR(?value_string) AS ?value)
-    BIND(CONCAT("../podcast-episode/", ?q) AS ?valueUrl)
-    BIND(7 AS ?order)
-    BIND("Next episode" AS ?description)
-  }
-} 
-ORDER BY ?order
+  BIND (xsd:date(?datetime) AS ?date)
+  FILTER ( xsd:date(NOW()) <= ?date )
+}
+ORDER BY (?date)
 ''';
-  scholia:aspect scholiaAspect:Podcast-episode ;
-  rdfs:comment "Podcast-episode aspect: data"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-episode_data.sparql> ;
+  scholia:aspect scholiaAspect:Event ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Event aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_upcoming-deadlines.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

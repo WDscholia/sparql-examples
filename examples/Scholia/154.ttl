@@ -16,36 +16,35 @@
 q:154 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q21109365>
-
-SELECT ?count ?protein ?proteinLabel ?species ?speciesLabel (?functions AS ?property_value)
-WITH {
-  SELECT ?protein (COUNT(?function) AS ?count)
-         (GROUP_CONCAT(?function_label; separator=" // ") AS ?functions)
-  WHERE {
-    BIND(target: AS ?query_protein)
-    ?query_protein wdt:P680 | wdt:P681 | wdt:P682 | wdt:P129 ?function .
-    FILTER (?query_protein != ?protein)
-    ?protein wdt:P680 | wdt:P681 | wdt:P682 | wdt:P129 ?function . 
-    ?function rdfs:label ?function_label FILTER(lang(?function_label) = "en")
+SELECT ?year (SUM(?citations_per_author_) AS ?citations_per_author) ?researcherLabel WHERE {
+  # Label the results
+  { # Find works of the researchers and count the number of citations
+    SELECT ?researcher ?work ?year (COUNT(DISTINCT ?citing_work) / COUNT(DISTINCT ?researcher_of_paper) AS ?citations_per_author_) WHERE {
+      { # Find researchers affiliated with the organization
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher wdt:P108 | wdt:P463 | wdt:P1416/wdt:P361* target: .
+        }
+      }
+      ?work wdt:P50 | wdt:P2093 ?researcher_of_paper .
+      ?work wdt:P50 ?researcher .
+      ?citing_work wdt:P2860 ?work .
+      ?work wdt:P577 ?date .
+      BIND (STR(YEAR(?date)) AS ?year)
+    }
+    GROUP BY ?work ?researcher ?year
   }
-  GROUP BY ?protein
-} AS %result 
-WHERE {
-  INCLUDE %result
-  OPTIONAL { ?protein wdt:P703 ?species . }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
 }
-ORDER BY DESC(?count)
-LIMIT 500''';
-  scholia:aspect scholiaAspect:Protein ;
-  rdfs:comment "Protein aspect: similar proteins"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/protein_similar-proteins.sparql> ;
+GROUP BY ?year ?researcher ?researcherLabel
+ORDER BY ?year
+''';
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_co-author-normalized-citations.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

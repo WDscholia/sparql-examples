@@ -16,43 +16,44 @@
 q:155 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:ScatterChart
-
-PREFIX target: <http://www.wikidata.org/entity/Q73820>
-
-SELECT ?work_count ?citation_count ?journal ?journalLabel 
-WITH {
-  SELECT ?work_count ?citation_count ?journal {
-    {
-      SELECT ?journal (COUNT(?work) AS ?work_count) {
-  	    ?journal wdt:P123 target: .
-  	    ?work wdt:P1433 ?journal .
+SELECT (SAMPLE(?number_of_works_) AS ?works) (SAMPLE(?wikis_) AS ?wikis) ?researcher ?researcherLabel ?researcherDescription (SAMPLE(?orcid_) AS ?orcid) WHERE {
+  {
+    SELECT (COUNT(?work) AS ?number_of_works_) ?researcher WHERE {
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+        }
       }
-      GROUP BY ?journal 
+      # No biological pathways; they skew the statistics too much 
+      MINUS {
+        ?work wdt:P31 wd:Q4915012
+      }
+      # This OPTIONAL query should be after the MINUS query, otherwise
+      # researchers might not show if they do not have any papers.
+      OPTIONAL {
+        ?work wdt:P50 ?researcher .
+      }
     }
-    {
-      SELECT ?journal (COUNT(?citing_work) AS ?citation_count) {
-  	    ?journal wdt:P123 target: .
-  	    ?work wdt:P1433 ?journal .
-        ?citing_work wdt:P2860 ?work . 
-      }
-      GROUP BY ?journal 
-    } 
+    GROUP BY ?researcher
   }
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
+  OPTIONAL {
+    ?researcher wdt:P496 ?orcid_ .
+  }
+  OPTIONAL {
+    ?researcher wikibase:sitelinks ?wikis_
+  }
 }
+GROUP BY ?researcher ?researcherLabel ?researcherDescription
+ORDER BY DESC(?works)
 ''';
-  scholia:aspect scholiaAspect:Publisher ;
-  scholia:defaultView scholiaView:ScatterChart ;
-  rdfs:comment "Publisher aspect: citations works"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/publisher_citations-works.sparql> ;
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Organization aspect:  Employees and affiliated with a specified organization"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_employees-and-affiliated.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

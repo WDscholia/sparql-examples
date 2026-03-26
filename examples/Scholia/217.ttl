@@ -17,48 +17,28 @@ q:217 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
   sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX pr: <http://www.wikidata.org/prop/reference/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-# title: Most cited authors published in venue
-
-PREFIX target: <http://www.wikidata.org/entity/Q6294930>
-
-SELECT
-  ?count
-  ?author ?authorLabel
-  ?orcid
-  ?example_cited_work ?example_cited_workLabel
-  ?example_citing_work ?example_citing_workLabel
-WITH {
-  # Count the number of citations
-  SELECT
-    ?author
-    (COUNT(?cited_work) AS ?count)
-    (SAMPLE(?cited_work) AS ?example_cited_work)
-    (SAMPLE(?citing_work) AS ?example_citing_work)
-  WHERE {
-    ?cited_work wdt:P1433 target: .
-    ?citing_work wdt:P2860 ?cited_work .
-    ?cited_work wdt:P50 ?author .
+SELECT DISTINCT ?entity ?entityLabel ?entityUrl ?property ?propertyLabel ?value ?valueLabel ?retracted ?retractedLabel (CONCAT("/retraction/", SUBSTR(STR(?retracted),32)) AS ?retractedUrl) WHERE {
+  {
+    SELECT DISTINCT ?entity ?p ?statement ?retracted WHERE {
+      ?retracted wdt:P31 wd:Q45182324 .
+      ?entity ?p ?statement .
+      ?statement prov:wasDerivedFrom/pr:P248 ?retracted .
+    }
   }
-  GROUP BY ?author
-} AS %result
-WHERE {
-  INCLUDE %result 
-          
-  # Include optional ORCID iD
-  OPTIONAL { ?author wdt:P496 ?orcid . }
-  
-  # Label the results
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
+  ?p ^wikibase:claim ?property .
+  ?statement ?ps ?value .
+  ?ps ^wikibase:statementProperty ?property .
+  BIND (?statement AS ?entityUrl)
 }
-ORDER BY DESC(?count)
-LIMIT 100
 ''';
-  scholia:aspect scholiaAspect:Venue ;
-  rdfs:comment "Venue aspect: Most cited authors published in venue"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/venue_most-cited-authors.sparql> ;
+  scholia:aspect scholiaAspect:Retraction-index ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Retraction-index aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/retraction-index_statements-with-retracted-references.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

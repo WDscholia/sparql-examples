@@ -16,34 +16,34 @@
 q:162 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q1635410>
-
-SELECT ?count ?coused ?cousedLabel ?example_work ?example_workLabel
-WITH{
-  # Find works that are using a specific software,
-  # and find other software used in the found works
-  SELECT
-    ?coused (COUNT(?work) as ?count) (SAMPLE(?work) AS ?example_work)
-  WHERE {
-    ?work wdt:P4510 / wdt:P279* target: ;
-          wdt:P4510 ?coused .
-    FILTER (?coused != target:)
+SELECT ?researchers ?use ?useLabel (CONCAT("/use/", SUBSTR(STR(?use),32)) AS ?useUrl) ("🔎" AS ?zoom)
+  (CONCAT("{{ q }}/use/", SUBSTR(STR(?use), 32)) AS ?zoomUrl)
+?useDescription ?samplework ?sampleworkLabel (CONCAT("/work/", SUBSTR(STR(?samplework),32)) AS ?sampleworkUrl) WHERE {
+  {
+    SELECT DISTINCT ?use (COUNT(DISTINCT ?researcher) AS ?researchers) (SAMPLE(?work) AS ?samplework) WHERE {
+      {
+        SELECT DISTINCT ?researcher WHERE {
+          ?researcher (wdt:P108 | wdt:P463 | wdt:P1416)/wdt:P361* target: .
+        }
+      }
+      ?work wdt:P50 ?researcher .
+      ?work wdt:P4510 ?use .
+    }
+    GROUP BY ?use
+    ORDER BY DESC(?researchers)
+    LIMIT 500
   }
-  GROUP BY ?coused
-} AS %result
-WHERE {
-  # Label the result
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
 }
-ORDER BY DESC(?count)  ''';
-  scholia:aspect scholiaAspect:Software ;
-  rdfs:comment "Software aspect: coused"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/software_coused.sparql> ;
+GROUP BY ?researchers ?use ?useLabel ?useDescription ?samplework ?sampleworkLabel
+ORDER BY DESC(?researchers)
+''';
+  scholia:aspect scholiaAspect:Organization ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Organization aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization_uses.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

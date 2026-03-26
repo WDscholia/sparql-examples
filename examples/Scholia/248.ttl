@@ -16,35 +16,42 @@
 q:248 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:Table
-
-PREFIX target: <http://www.wikidata.org/entity/Q28942417>
-
-# List of related works by co-citation analysis
-SELECT ?count ?work ?workLabel
-WITH {
-  SELECT ?work (COUNT(?work) AS ?count)
-  WHERE {
-    target: (^wdt:P2860 | wdt:P2860) / (^wdt:P2860 | wdt:P2860)? ?work .
-    FILTER (target: != ?work)
+SELECT (?_child AS ?child) ?childLabel ?rgb (?_parent AS ?parent) ?parentLabel WHERE {
+  {
+    # Parent taxa
+    target: wdt:P171+ ?_child .
+    ?_child wdt:P171 ?_parent .
+    BIND ("FFFFFF" AS ?rgb)
+  } UNION {
+    # Child taxa
+    {SELECT ?_child ?_parent WHERE {
+      BIND (target: AS ?_parent) .
+      ?_child wdt:P171 ?_parent .
+    } LIMIT 100}
+    BIND ("DDDDDD" AS ?rgb)
+  } UNION {
+    BIND (target: AS ?_child) .
+    ?_child wdt:P171 ?_parent .
+    BIND ("FF0000" AS ?rgb)
   }
-  GROUP BY ?work
-  LIMIT 500
-} AS %result
-WHERE {
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
-} 
-ORDER BY DESC(?count) 
+
+  OPTIONAL {
+    ?_child wdt:P105 ?_childRank .
+  }
+  OPTIONAL {
+    ?_parent wdt:P105 ?_parentRank .
+  }
+
+  BIND (CONCAT(?_childLabel, " - ", COALESCE(?_childRankLabel, "???")) AS ?childLabel)
+  BIND (CONCAT(?_parentLabel, " - ", COALESCE(?_parentRankLabel, "???")) AS ?parentLabel)
+}
 ''';
-  scholia:aspect scholiaAspect:Work ;
-  scholia:defaultView scholiaView:Table ;
-  rdfs:comment "Work aspect: related works"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/work_related-works.sparql> ;
+  scholia:aspect scholiaAspect:Taxon ;
+  scholia:defaultView scholiaView:Graph ;
+  rdfs:comment "Taxon aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/taxon_tree.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

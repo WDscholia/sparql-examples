@@ -16,61 +16,57 @@
 q:047 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX pr: <http://www.wikidata.org/prop/reference/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#defaultView:BarChart
-PREFIX target: <http://www.wikidata.org/entity/Q2270>
-
-# title: publications per year for this chemical
-# Inspired from LEGOLAS - http://abel.lis.illinois.edu/legolas/
-# Shubhanshu Mishra, Vetle Torvik
-select ?year (count(?work) as ?number_of_publications) where {
+SELECT ?mol ?molLabel ?InChIKey ?CAS ?CASUrl ?ChemSpider ?ChemSpiderUrl ?PubChem_CID ?PubChem_CIDUrl WHERE {
   {
-    select (str(?year_) as ?year) (0 as ?pages) where {
-      # default values = 0
-      ?year_item wdt:P31 wd:Q577 . 
-      ?year_item wdt:P585 ?date .
-      bind(year(?date) as ?year_)
-      {
-        select (min(?year_) as ?earliest_year) where {
-          { ?work wdt:P921/wdt:P31*/wdt:P279* target: . }
-          union { ?work wdt:P921/(^wdt:P361)+ target: . }
-          union { ?work wdt:P921/wdt:P1269+ target: . }
-          union { target: ?propp ?statement .
-                  ?statement a wikibase:BestRank ;
-                             prov:wasDerivedFrom/pr:P248 ?work . }
-          ?work wdt:P577 ?publication_date . 
-          bind(year(?publication_date) as ?year_)
-        }
+    SELECT DISTINCT ?mol WHERE {
+      ?mol wdt:P279* target: .
+      MINUS {
+        [] wdt:P279 ?mol
       }
-      bind(year(now()) as ?next_year)
-      filter (?year_ >= ?earliest_year && ?year_ <= ?next_year)
     }
+    LIMIT 500
   }
-  union {
-    select ?work (min(?years) as ?year) where {
-      { ?work wdt:P921/wdt:P31*/wdt:P279* target: . }
-      union { ?work wdt:P921/wdt:P527+ target: . }
-      union { ?work wdt:P921/wdt:P1269+ target: . }
-      union { target: ?propp ?statement .
-              ?statement a wikibase:BestRank ;
-                         prov:wasDerivedFrom/pr:P248 ?work . }
-      ?work wdt:P577 ?dates .
-      bind(str(year(?dates)) as ?years) .
+  OPTIONAL {
+    ?mol wdt:P235 ?InChIKey
+  }
+  OPTIONAL {
+    VALUES ?CASIDdir { wdt:P231 }
+    ?mol ?CASIDdir ?CAS .
+    OPTIONAL {
+      ?CASIDpred wikibase:directClaim ?CASIDdir .
+      ?CASIDpred wdt:P1630 ?CASformatterurl .
     }
-    group by ?work 
+    BIND (IRI(REPLACE(?CASformatterurl, '\\\\$1', STR(?CAS))) AS ?CASUrl) .
+  }
+  OPTIONAL {
+    VALUES ?IDdir { wdt:P661 }
+    ?mol ?IDdir ?ChemSpider .
+    OPTIONAL {
+      ?IDpred wikibase:directClaim ?IDdir .
+      ?IDpred wdt:P1630 ?formatterurl .
+    }
+    BIND (IRI(REPLACE(?formatterurl, '\\\\$1', STR(?ChemSpider))) AS ?ChemSpiderUrl) .
+  }
+  OPTIONAL {
+    ?mol wdt:P662 ?PubChem_CID
+  }
+  OPTIONAL {
+    VALUES ?PCIDdir { wdt:P662 }
+    ?mol ?PCIDdir ?PubChem_CID .
+    OPTIONAL {
+      ?PCIDpred wikibase:directClaim ?PCIDdir .
+      ?PCIDpred wdt:P1630 ?PCformatterurl .
+    }
+    BIND (IRI(REPLACE(?PCformatterurl, '\\\\$1', STR(?PubChem_CID))) AS ?PubChem_CIDUrl) .
   }
 }
-group by ?year 
-order by ?year
 ''';
-  scholia:aspect scholiaAspect:Chemical ;
-  scholia:defaultView scholiaView:BarChart ;
-  rdfs:comment "Chemical aspect: publications per year for this chemical"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical_publications-per-year.sparql> ;
+  scholia:aspect scholiaAspect:Chemical-class ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Chemical-class aspect:  lists related chemicals for this class"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/chemical-class_related-chemicals.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

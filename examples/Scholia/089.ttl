@@ -16,88 +16,47 @@
 q:089 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q133457282>
-
-SELECT
-  (ROUND(1000 * ?score_) / 1000 AS ?score)
-  (ROUND(1000 * ?time_score_) / 1000 AS ?time_score)
-  (ROUND(1000 * ?location_score_) / 1000 AS ?location_score) 
-  ?event ?eventLabel
-WITH {
-  SELECT ?event_type WHERE {
-    VALUES ?event_type { wd:Q2020153 wd:Q46855 wd:Q40444998 }
-  }
-} AS %event_types
-WITH {
-  SELECT ?event WHERE {
-    INCLUDE %event_types
-    ?event wdt:P31 / wdt:P279* ?event_type .
-  }
-} AS %events
-WITH {
-  SELECT
-    (SUM(?scores) AS ?score_)
-    (MAX(?time_scores) AS ?time_score_)
-    (MAX(?location_scores) AS ?location_score_)
-    ?event
-  WHERE {
-    INCLUDE %events 
-          
-    { 
-      # Around the same time
-      target: wdt:P580 | wdt:P585 ?time0 .
-      ?event wdt:P580 | wdt:P585 ?time .
-      BIND((365.25 * YEAR(?time0) + 30.5 * MONTH(?time0) + DAY(?time0)) AS ?day0)
-      BIND((365.25 * YEAR(?time) + 30.5 * MONTH(?time) + DAY(?time)) AS ?day)
-      
-      # TODO: multiple days cause double counting
-      BIND(20 / (1 + ABS(?day - ?day0)) AS ?time_scores)
-    }
-    # UNION
-    {
-      SELECT ?event (MAX(?inverse_distance) AS ?location_scores) WHERE {
-        INCLUDE %events 
-                
-        # geocoordinate of the query event
-        target: wdt:P276? / wdt:P159? / wdt:P625 ?geo0 .
-        
-        # geocoordinate of other events
-        ?event wdt:P276? / wdt:P625 ?geo .
-        
-        # inverse distance
-        BIND((200 / (1 + geof:distance(?geo, ?geo0))) AS ?inverse_distance)
+SELECT ?number_of_citing_works ?author ?authorLabel ?organization ?organizationLabel ?example_work ?example_workLabel WHERE {
+  {
+    SELECT ?author (COUNT(DISTINCT ?citing_work) AS ?number_of_citing_works) ?organization ?organizationLabel (SAMPLE(?work) AS ?example_work) WHERE {
+      {
+        SELECT DISTINCT ?author WHERE {
+          ?author wdt:P27 | wdt:P1416/wdt:P17 | wdt:P108/wdt:P17 target: .
+        }
+      } 
+      UNION
+      {
+        SELECT DISTINCT ?author ?organization ?organizationLabel WHERE {
+          {
+            SELECT DISTINCT ?author (SAMPLE (?organization_) AS ?organization) WHERE {
+              ?author wdt:P27 | wdt:P1416/wdt:P17 | wdt:P108/wdt:P17 target: .
+ 	      ?author wdt:P1416 | wdt:P108 ?organization_ .
+ 	      ?organization_ wdt:P17 target:
+            } GROUP BY ?author
+          }
+        }
       }
-      GROUP BY ?event
-    }
-
-    # Should online event be listed? 
-    # UNION
-    # {
-    #   VALUES ?online_event { wd:Q1543677 wd:Q98381855 wd:Q98381912 }
-    #   ?event wdt:P31 ?online_event .
-    #   BIND(200 AS ?location_scores)
-    # }
-  
-    BIND((?time_scores * ?location_scores) AS ?scores)
+      ?work wdt:P50 ?author .
+      OPTIONAL {
+        ?citing_work wdt:P2860 ?work .
+      }
+      OPTIONAL {
+        ?author wdt:P1416 | wdt:P108 ?organization_ .
+        ?organization_ wdt:P17 target:
+      }
+    } GROUP BY ?author ?organization ?organizationLabel
   }
-  GROUP BY ?event
-  
-} AS %results
-WHERE {
-  INCLUDE %results
-  FILTER (?event != target:)
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
 }
-ORDER BY DESC(?score)
+ORDER BY DESC(?number_of_citing_works)
+LIMIT 1000
 ''';
-  scholia:aspect scholiaAspect:Event ;
-  rdfs:comment "Event aspect: related events timelocation"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/event_related-events-timelocation.sparql> ;
+  scholia:aspect scholiaAspect:Country ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Country aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/country_authors.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

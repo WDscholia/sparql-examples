@@ -16,39 +16,39 @@
 q:245 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
-PREFIX ps: <http://www.wikidata.org/prop/statement/>
+  sh:select '''
+PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q28942417>
-
-SELECT ?intention ?intentionLabel (CONCAT("/cito/", SUBSTR(STR(?intention), 32)) AS ?intentionUrl)  
-?count ?example_work_for_intention ?example_work_for_intentionLabel 
-
-WITH {
-  SELECT ?intention (COUNT(DISTINCT ?citingArticle) AS ?count) (SAMPLE(?citingArticle) AS ?example_work_for_intention) {
-    VALUES ?CITEDARTICLE { target: }
-    ?citingArticle p:P2860 ?citationStatement .
-    ?citationStatement pq:P3712 ?intention ;
-                       ps:P2860 ?CITEDARTICLE .
-    ?intention wdt:P31 wd:Q96471816 .
+SELECT DISTINCT ?metabolite ?metaboliteLabel ?metaboliteChemicalStructure ?metaboliteDescription {
+  {
+    SELECT DISTINCT ?metabolite ?metaboliteChemicalStructure WHERE {
+      {
+        SELECT DISTINCT ?children WHERE {
+          ?children (wdt:P171*) target: .
+        }
+      }
+      {
+        ?metabolite wdt:P703 ?children
+      }
+      VALUES ?chemical { wd:Q113145171 wd:Q59199015 }
+      ?metabolite wdt:P31 ?chemical .
+      OPTIONAL {
+        ?metabolite wdt:P233 ?canSmiles
+      }
+      OPTIONAL {
+        ?metabolite wdt:P2017 ?isoSmiles
+      }
+      BIND (COALESCE(?isoSmiles, ?canSmiles) AS ?metaboliteChemicalStructure)
+    }
   }
-  GROUP BY ?intention
-
-} AS %intentions
-WHERE {
-  INCLUDE %intentions
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
 }
-GROUP BY ?intention ?intentionLabel ?count ?example_work_for_intention ?example_work_for_intentionLabel
-ORDER BY DESC(?count)
 ''';
-  scholia:aspect scholiaAspect:Work ;
-  rdfs:comment "Work aspect: cito incoming"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/work_cito-incoming.sparql> ;
+  scholia:aspect scholiaAspect:Taxon ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Taxon aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/taxon_metabolome.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

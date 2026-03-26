@@ -16,20 +16,34 @@
 q:149 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target1: <http://www.wikidata.org/entity/{{ q1 }}>
+PREFIX target2: <http://www.wikidata.org/entity/{{ q2 }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/prop/direct/{{ p }}>
-
-SELECT ?item ?itemLabel ?property_value ?property_valueLabel WHERE {
-  ?item target: ?property_value .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . }
+SELECT ?works ?author ?authorLabel ?authorDescription (CONCAT("/author/", SUBSTR(STR(?author),32)) AS ?authorUrl) ?example_work ?example_workLabel (CONCAT("/work/", SUBSTR(STR(?example_work),32)) AS ?example_workUrl) WHERE {
+  {
+    SELECT (COUNT(DISTINCT ?work) AS ?works) ?author (SAMPLE(?work) AS ?example_work) {
+      {
+        ?author ?p1 target1: .
+      }
+      UNION {
+        ?author ?p2 ?something .
+        ?something wdt:P361 target1: .
+      }
+      ?work wdt:P50 ?author ;
+            wdt:P921/wdt:P279* target2: .
+    }
+    GROUP BY ?author
+    ORDER BY DESC(?works)
+    LIMIT 200
+  }
 }
-LIMIT 500
+ORDER BY DESC(?works)
 ''';
-  scholia:aspect scholiaAspect:Property ;
-  rdfs:comment "Property aspect: use"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/property_use.sparql> ;
+  scholia:aspect scholiaAspect:Organization-topic ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Organization-topic aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/organization-topic_authors.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

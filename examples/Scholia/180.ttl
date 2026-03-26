@@ -16,42 +16,29 @@
 q:180 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX hint: <http://www.bigdata.com/queryHints#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX target: <http://www.wikidata.org/entity/Q45340488>
-
-SELECT ?count 
-?award ?awardLabel (CONCAT("/award/", SUBSTR(STR(?award), 32)) AS ?awardUrl)
-?recipients ?recipientsUrl
-WITH {
-  SELECT (COUNT(?researcher) AS ?count) ?award 
-  (GROUP_CONCAT(DISTINCT ?researcher_label; separator=", ") AS ?recipients) 
-  (CONCAT("../authors/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?researcher), 32); separator=",")) AS ?recipientsUrl)
-  WHERE {
-    { 
-      SELECT DISTINCT ?researcher ?award WHERE {
-        hint:Query hint:optimizer "None" .
-        ?work wdt:P921 target: .
-        ?work wdt:P50 ?researcher .
-        ?researcher wdt:P166 ?award .
-      } 
-      LIMIT 100
-    }
-    ?researcher rdfs:label ?researcher_label . FILTER (LANG(?researcher_label) = 'en')
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?podcast ?podcastLabel (CONCAT("/podcast/", SUBSTR(STR(?podcast),32)) AS ?podcastUrl) (GROUP_CONCAT(?genreWDLabel; SEPARATOR=", ") AS ?genre) WHERE {
+  ?podcast wdt:P31 wd:Q24634210 ;
+           wdt:P407 target: .
+  OPTIONAL {
+    ?podcast wdt:P136 ?iri
+    BIND (SUBSTR(STR(?iri),32) AS ?q)
+    ?iri rdfs:label ?value_string .
+    FILTER (LANG(?value_string) = 'en')
+    BIND (COALESCE(?value_string, ?q) AS ?genreWDLabel)
   }
-  GROUP BY ?award 
-} AS %result
-WHERE {
-  INCLUDE %result
-    ?award rdfs:label ?awardLabel . FILTER (LANG(?awardLabel) = 'en')
 }
-GROUP BY ?count ?award ?awardLabel ?recipients ?recipientsUrl
-ORDER BY DESC(?count)
+GROUP BY ?podcast ?podcastLabel
+ORDER BY DESC(?podcastLabel)
 ''';
-  scholia:aspect scholiaAspect:Topic ;
-  rdfs:comment "Topic aspect: author awards"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/topic_author-awards.sparql> ;
+  scholia:aspect scholiaAspect:Podcast-language ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Podcast-language aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/podcast-language_podcast-list.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

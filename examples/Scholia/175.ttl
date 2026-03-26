@@ -16,50 +16,49 @@
 q:175 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX wd: <http://wikidata.org/entity/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX target: <http://www.wikidata.org/entity/Q12024>
-
-SELECT
-  ?Identifier ?IdentifierLabel
-  ?id (SAMPLE(?idUrls) as ?idUrl)
-  ?IdentifierDescription
-WITH {
-  SELECT ?Identifier ?id ?formatterurl WHERE {
-    target: ?IDdir ?id .
-    ?Identifier wikibase:directClaim ?IDdir ;
-            wdt:P31/wdt:P279* wd:Q42396390 .
-    OPTIONAL {
-      ?Identifier wdt:P1630 ?formatterurl .
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?date ?work ?workLabel ?type ?topics WHERE {
+  {
+    SELECT (MAX(?dates) AS ?datetime) ?work (GROUP_CONCAT(DISTINCT ?type_label; SEPARATOR=", ") AS ?type) (GROUP_CONCAT(?topic_label; SEPARATOR=" // ") AS ?topics) WHERE {
+      {
+        SELECT DISTINCT ?work WHERE {
+          {
+            ?work wdt:P921/(wdt:P361+ | wdt:P1269+ | (wdt:P31*/wdt:P279*)) target: .
+          }
+          UNION {
+            target: wdt:P2860 ?work .
+          }
+        }
+      }
+      OPTIONAL {
+        ?work wdt:P921 ?topic .
+        ?topic rdfs:label ?topic_label .
+        FILTER (LANG(?topic_label) = 'en')
+      }
+      OPTIONAL {
+        ?work wdt:P31 ?type_ .
+        ?type_ rdfs:label ?type_label .
+        FILTER (LANG(?type_label) = 'en')
+      }
+      OPTIONAL {
+        ?work wdt:P577 ?dates .
+      }
     }
-    FILTER (?Identifier != wd:P233)
-    FILTER (?Identifier != wd:P234)
-    FILTER (?Identifier != wd:P2017)
-  } LIMIT 500
-} AS %RESULTS {
-  { SELECT * WHERE {
-      INCLUDE %RESULTS
-      FILTER (?Identifier = wd:P234)
-      BIND(IRI(REPLACE(?formatterurl, '\\\\$1', ENCODE_FOR_URI(str(?id)))) AS ?idUrls).
-    }
-  } UNION {
-    SELECT * WHERE {
-      INCLUDE %RESULTS
-      FILTER (?Identifier != wd:P234)
-      BIND(IRI(REPLACE(?formatterurl, '\\\\$1', str(?id))) AS ?idUrls).
-    }
+    GROUP BY ?work
   }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en". }
+  BIND (xsd:date(?datetime) AS ?date)
 }
-GROUP BY ?Identifier ?IdentifierLabel ?IdentifierDescription ?id
-ORDER BY ASC(?IdentifierLabel)
+ORDER BY DESC(?date)
+LIMIT 500
 ''';
-  scholia:aspect scholiaAspect:Taxon ;
-  rdfs:comment "Taxon aspect: identifiers"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/taxon_identifiers.sparql> ;
+  scholia:aspect scholiaAspect:Pathway ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Pathway aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/pathway_recent-articles.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

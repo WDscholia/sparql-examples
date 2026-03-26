@@ -16,43 +16,32 @@
 q:173 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX p: <http://www.wikidata.org/prop/>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wikibase: <http://wikiba.se/ontology#>
-#title: Taxa that co-occur with the target taxon in the literature
-PREFIX target: <http://www.wikidata.org/entity/Q12024>
-
-SELECT ?count (CONCAT("/topics/",SUBSTR(STR(target:), 32), ",", SUBSTR(STR(?taxon), 32)) AS ?countUrl)
-       ?taxon ?taxonLabel (CONCAT("/taxon/", SUBSTR(STR(?taxon), 32)) AS ?taxonUrl)
-       ?example_work ?example_workLabel (CONCAT("/work/", SUBSTR(STR(?example_work), 32)) AS ?example_workUrl)
-WITH {
-  SELECT (COUNT(?work) AS ?count) ?taxon (SAMPLE(?work) AS ?example_work) WHERE {
-    # Find works for the specific queried topic
-	?work wdt:P921 target: .
-    
-    # Find co-occuring topics
-    ?work wdt:P921 ?taxon .
-    
-    # Filter for taxa
-    ?taxon wdt:P105 ?taxonrank .
-    
-    # Avoid listing the queried topic itself
-    FILTER (target: != ?taxon)
+SELECT ?part ?partLabel ?partDescription ?type WHERE {
+  {
+    SELECT ?part (GROUP_CONCAT(DISTINCT ?type_label; SEPARATOR=", ") AS ?type) WHERE {
+      VALUES ?process { wd:Q4915012 wd:Q2996394 }
+      target: wdt:P31 ?process ;
+              wdt:P527 ?part .
+      OPTIONAL {
+        ?part wdt:P31 ?type_ .
+        ?type_ rdfs:label ?type_label .
+        FILTER (LANG(?type_label) = 'en')
+      }
+    }
+    GROUP BY ?part
   }
-  GROUP BY ?taxon
-} AS %result
-WHERE {
-  # Label the results
-  INCLUDE %result
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],mul,en" . } 
 }
-ORDER BY DESC(?count)
-LIMIT 200
+ORDER BY ASC(?partLabel)
 ''';
-  scholia:aspect scholiaAspect:Taxon ;
-  rdfs:comment "Taxon aspect: co occurring taxa"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  spex:federatesWith <http://wikiba.se/ontology#label> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/taxon_co-occurring-taxa.sparql> ;
+  scholia:aspect scholiaAspect:Pathway ;
+  scholia:defaultView scholiaView: ;
+  rdfs:comment "Pathway aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/pathway_participants.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .

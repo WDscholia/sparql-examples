@@ -16,44 +16,38 @@
 q:226 a sh:SPARQLExecutable,
   sh:SPARQLSelectExecutable;
   sh:prefixes _:sparql_examples_prefixes ;
-  sh:select '''PREFIX hint: <http://www.bigdata.com/queryHints#>
-PREFIX p: <http://www.wikidata.org/prop/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  sh:select '''PREFIX target: <http://www.wikidata.org/entity/{{ q }}>
+PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX target: <http://www.wikidata.org/entity/Q60687720>
-
-SELECT ?count 
-?award ?awardLabel (CONCAT("/award/", SUBSTR(STR(?award), 32)) AS ?awardUrl)
-?recipients ?recipientsUrl
-WITH {
-  SELECT (COUNT(?researcher) AS ?count) ?award 
-  (GROUP_CONCAT(DISTINCT ?researcher_label; separator=", ") AS ?recipients) 
-  (CONCAT("../authors/", GROUP_CONCAT(DISTINCT SUBSTR(STR(?researcher), 32); separator=",")) AS ?recipientsUrl)
-  WHERE {
-    { 
-      SELECT DISTINCT ?researcher ?award WHERE {
-        hint:Query hint:optimizer "None" .
-        { ?work wdt:P6104 target: .}
-        union 
-        { ?work wdt:P5008 target: .}
-        ?work wdt:P50 ?researcher .
-        ?researcher wdt:P166 ?award .
-      } 
-      LIMIT 100
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?year ?count ?organization ?organizationLabel WHERE {
+  {
+    SELECT ?year (COUNT(?work) AS ?count) ?organization WHERE {
+      {
+        SELECT (MIN(?year_) AS ?year) ?work WHERE {
+          ?collection wdt:P179 target: .
+          ?work wdt:P1433 ?collection .
+          ?work wdt:P577 ?datetimes .
+          BIND (STR(YEAR(?datetimes)) AS ?year_)
+        }
+        GROUP BY ?work
+      }
+      ?work wdt:P50 ?author .
+      # For now, only employment relation
+      # We could add affiliation with "| wdt:P1416/wdt:P361*"
+      # Note that this extra term will double count.
+      ?author wdt:P108 ?organization .
     }
-    ?researcher rdfs:label ?researcher_label . FILTER (LANG(?researcher_label) = 'en')
+    GROUP BY ?year ?organization
+    # Exclude organizations with only a single count
+    # HAVING(?count > 1)
+    }
   }
-  GROUP BY ?award 
-} AS %result
-WHERE {
-  INCLUDE %result
-    ?award rdfs:label ?awardLabel . FILTER (LANG(?awardLabel) = 'en')
-}
-GROUP BY ?count ?award ?awardLabel ?recipients ?recipientsUrl
-ORDER BY DESC(?count)
+ ORDER BY ?year
 ''';
-  scholia:aspect scholiaAspect:Wikiproject ;
-  rdfs:comment "Wikiproject aspect: author awards"@en ;
-  schema:target <https://query.wikidata.org/sparql> ;
-  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/wikiproject_author-awards.sparql> ;
+  scholia:aspect scholiaAspect:Series ;
+  scholia:defaultView scholiaView:BarChart ;
+  rdfs:comment "Series aspect: no description given"@en ;
+  schema:target <https://qlever.dev/wikidata> ;
+  cito:usesMethodIn <https://github.com/WDscholia/scholia/tree/master/scholia/app/templates/series_organizations.sparql> ;
   dcterms:license <https://www.gnu.org/licenses/gpl-3.0> .
